@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+
+  # navigation
+  insertionnet:
+    container_name: insertionnet
+    image: CONTAINER_REGISTRY/insertionnet:peg-v0.3
+    command: python3 /workspace/insertion/insertionnet/inference_server_l.py
+    ports:
+      - "50051:50052"
+    networks:
+      - ros-net
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # for X11 forwarding
+    runtime: nvidia         # Equivalent to --runtime=nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+  

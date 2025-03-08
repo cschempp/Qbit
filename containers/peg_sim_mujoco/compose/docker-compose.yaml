@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+
+  mujococo1:
+    container_name: mujococo
+    image: CONTAINER_REGISTRY/mujoco-insertion:v0.4
+    command: "python3 /workspace/examples/cloud_perf_sim_grpc_arg.py --inf_server_ip 172.19.0.1 --inf_server_port 50051"
+    networks:
+      - ros-net
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev:/dev # libGL for Gazebo needs access to /dev/dri/renderD129
+      - $HOME/.Xauthority:/root/.Xauthority
+    runtime: nvidia         # Equivalent to --runtime=nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      DISPLAY: :1
+      NVIDIA_DRIVER_CAPABILITIES: all
+    privileged: true
