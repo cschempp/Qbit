@@ -9,10 +9,12 @@ Position based insertion in development mode and use for following tests:
 import numpy as np
 import mujoco
 import mujoco.viewer
+import copy
 
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
+from qbit.utils.data_recording_utils import DataRecording
 from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion
 
 
@@ -39,7 +41,7 @@ class PositionBasedInsertion(MjEnvInsertion):
                  sim_timestep: float = 0.001,
                  rendering_timestep: float = 0.033,
                  rt_factor: float = 0.0,
-                 headless: bool = False,
+                 headless: bool = True,
                  server_modus: bool = False,
                  ):
         
@@ -61,6 +63,8 @@ class PositionBasedInsertion(MjEnvInsertion):
             kp = 2,
             eef_pos_vel_max = np.array([0.1, 0.1, 0.1]) * 4
         )
+        
+        self.data_eva = DataRecording(object_type="peg", material_female="steel", material_male="steel")
 
     def termination_data_collection(self,
                                     current_eef_pose_T: T,
@@ -92,21 +96,21 @@ class PositionBasedInsertion(MjEnvInsertion):
             measured_wrench = self.robot.get_fts_data(transform_to_base=True)
 
             # Recoad data
-            # self.data_eva.record(
-            #     timestamp = self.i * ADMITTANCE_CONTROL_T,
-            #     eef_fts=copy.deepcopy(measured_wrench),
-            #     eef_pos=current_eef_pose_T.translation,
-            #     eef_qua=current_eef_pose_T.quaternion,
-            #     joint_states=current_joint_state
-            # )
+            self.data_eva.record(
+                timestamp = self.i * ADMITTANCE_CONTROL_T,
+                eef_fts=copy.deepcopy(measured_wrench),
+                eef_pos=current_eef_pose_T.translation,
+                eef_qua=current_eef_pose_T.quaternion,
+                joint_states=current_joint_state
+            )
             
-            # print(f"Measured wrench from FTS: {measured_wrench}")
-            # print(f"Current EEF pos: {current_eef_pose_T.translation}")
-            # print(f"Currnet EEF rot: {current_eef_pose_T.euler_rotation * 180 / np.pi}")
+            print(f"Measured wrench from FTS: {measured_wrench}")
+            print(f"Current EEF pos: {current_eef_pose_T.translation}")
+            print(f"Currnet EEF rot: {current_eef_pose_T.euler_rotation * 180 / np.pi}")
 
             # Check the termination condition
             if self.termination(current_eef_pose_T):
-                # self.data_eva.save()
+                self.data_eva.save()
                 return
             
             # EEF Position control
@@ -123,11 +127,13 @@ class PositionBasedInsertion(MjEnvInsertion):
                 qpos_thresh=0.001,
                 executing=False
             )
+
             for _ in range(10):
-                
                 self.robot.spin()
                 self.step_mj_simulation()
-            viewer.sync()
+
+            if viewer != None:    
+                viewer.sync()
 
             self.i += 1
         
@@ -156,8 +162,23 @@ class PositionBasedInsertion(MjEnvInsertion):
 
             self.insertion(goal_pose_T, viewer)
             return
-        
-        
+
+
+    def exec_insertion_headless(self):
+        start_pose_T, goal_pose_T = self.get_fixed_start_and_goal_pose()
+
+        # Move the robot to the initial position
+        self.robot.move_to_eef_pose(
+            start_pose_T.get_pos_quat_list(quat_format='xyzw'),
+            qpos_thresh=0.001,
+            executing=True
+        )
+
+        self.insertion(goal_pose_T, None)
+
+        return
+
+
 
 if __name__ == "__main__":
     
@@ -167,4 +188,4 @@ if __name__ == "__main__":
         task_env_config_path=task_env_config_path,
         server_modus=True
         )
-    mj.exec_insertion()
+    mj.exec_insertion_headless()
