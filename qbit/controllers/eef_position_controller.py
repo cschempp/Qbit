@@ -103,16 +103,16 @@ class EEFPositionController:
         eef_rot_corr = np.clip(eef_rot_corr, -max_rot_vel, max_rot_vel)
         
         eef_pos_cmd = eef_current.translation + eef_pos_corr
-        eef_rot_cmd = eef_current.euler_rotation  # + eef_rot_corr
+        eef_rot_cmd = eef_current.euler_rotation #+ eef_rot_corr
         
         eef_cmd_T = T.from_euler(eef_pos_cmd, eef_rot_cmd)
         
         q_cmd = self.ik.ik(eef_cmd_T.matrix, q_init.tolist())
         
-        print("--------------------")
-        print("EEF_CURRENT: ", eef_current.translation)
-        print("EEF_POS_ERR: ", eef_pos_err)
-        print("EEF_POS_CORR: ", eef_pos_corr)
-        print("EEF_POS_CMD: ", eef_pos_cmd)
+        # print("--------------------")
+        # print("EEF_CURRENT: ", eef_current.translation)
+        # print("EEF_POS_ERR: ", eef_pos_err)
+        # print("EEF_POS_CORR: ", eef_pos_corr)
+        # print("EEF_POS_CMD: ", eef_pos_cmd)
 
         return q_cmd

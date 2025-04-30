@@ -74,23 +74,24 @@ class MeshObjects:
         if not os.path.exists(self._decomposed_mesh_dir):
             os.makedirs(self._decomposed_mesh_dir)
             
-        mesh = trimesh.load(self._obj_path)
-        mesh = coacd.Mesh(mesh.vertices, mesh.faces)
-        parts = coacd.run_coacd(mesh, threshold=threshold)
-        
-        for i, p in enumerate(parts):
-            mesh = trimesh.Trimesh(p[0], p[1])
-            mesh.visual.face_colors = trimesh.visual.color.random_color()
-            mesh.export(f"{self._decomposed_mesh_dir}/part_{i}.obj")
-        print(f"Decomposed meshes ({i} parts) are saved in {self._decomposed_mesh_dir}")
+            mesh = trimesh.load(self._obj_path)
+            mesh = coacd.Mesh(mesh.vertices, mesh.faces)
+            parts = coacd.run_coacd(mesh, threshold=threshold)
+            
+            for i, p in enumerate(parts):
+                mesh = trimesh.Trimesh(p[0], p[1])
+                mesh.visual.face_colors = trimesh.visual.color.random_color()
+                mesh.export(f"{self._decomposed_mesh_dir}/part_{i}.obj")
+            print(f"Decomposed meshes ({i} parts) are saved in {self._decomposed_mesh_dir}")
         
 
 if __name__ == "__main__":
     
 
-    obj_path = "/workspace/qbit/assets/task_env/plugs/usb_a_female_m.stl"
+    obj_path = "/workspace/qbit/assets/task_env/primitives/box_30.831x11.208x30.872/box_30.831x11.208x30.872_female.stl"
+   
     # obj_path = "/workspace/qacbi/assets/task_env/plugs/dsub_25_female.stl"
     
     mo = MeshObjects(obj_path)
-    mo.decomposition_with_vhacd()
+    mo.decomposition_with_coacd(threshold=0.01)
     

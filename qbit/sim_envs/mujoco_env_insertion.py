@@ -59,14 +59,14 @@ class MjEnvInsertion(MujocoEnvBase):
         self._last_render_time = 0
 
         
+        start_position_hole, insertion_depth = self.load_env(task_env_config_path)
+        
         self.insertion_goal_T = T(
-            translation = [0.6, 0.0, 0.146],
+            translation = [0.6, 0.0, insertion_depth/2 + 0.11 + 0.001],
             quaternion = [0.707, 0.707, 0.0, 0.0]
         )
-        self.z_insertion_depth = 0.081  # insertion depth
         
-        
-        self.load_env(task_env_config_path)
+        self.z_insertion_depth = insertion_depth # insertion depth
         
         self.compile_model()
         
@@ -155,7 +155,7 @@ class MjEnvInsertion(MujocoEnvBase):
     def get_fixed_start_and_goal_pose(self,
                                       pos_offset: np.ndarray = np.array([0.0, 0.0, 0.0]),
                                       rot_offset: np.ndarray = np.array([0.0, 0.0, 0.0]) * np.pi/180,
-                                      rotation_axis_offset: np.ndarray = np.array([0.0, 0.0, 0.15])):
+                                      rotation_axis_offset: np.ndarray = np.array([0.0, 0.0, 0.0])): #0.15
         """
         Get the fixed start and goal pose with the given offset
         """
@@ -175,10 +175,12 @@ class MjEnvInsertion(MujocoEnvBase):
 
     def termination(self, 
                     current_eef_pose_T: T,
-                    threshold: float = 0.02
+                    threshold: float = 0.0001
                     ) -> bool:
 
         if current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + threshold:
+            return True
+        if self.i >= 1000:
             return True
         return False
 

@@ -1,0 +1,87 @@
+Mon Apr 28 07:55:10 2025
+ERROR: could not initialize GLFW
+
+Mon Apr 28 07:57:51 2025
+ERROR: could not initialize GLFW
+
+Mon Apr 28 12:28:14 2025
+ERROR: could not initialize GLFW
+
+Mon Apr 28 13:54:12 2025
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 1.9150.
+
+Tue Apr 29 09:23:44 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 09:55:34 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 09:56:48 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 09:57:03 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 09:59:42 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:00:00 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:00:10 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:05:43 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:08:45 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:10:42 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:11:00 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:14:05 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:21:57 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:22:05 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:24:23 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 10:29:59 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:14:13 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:19:03 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:29:11 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:42:56 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:45:27 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:47:11 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:49:05 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:50:07 2025
+ERROR: could not initialize GLFW
+
+Tue Apr 29 11:51:41 2025
+ERROR: could not initialize GLFW
+

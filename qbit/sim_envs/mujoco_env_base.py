@@ -81,7 +81,9 @@ class MujocoEnvBase:
         self.load_env_objects(self._config.get('env_objects'))
 
         # load task objects
-        self.load_task_objects(self._config.get('task_objects'))
+        start_position_hole, insertion_depth = self.load_task_objects(self._config.get('task_objects'))
+
+        return start_position_hole, insertion_depth
         
         
 
@@ -121,12 +123,45 @@ class MujocoEnvBase:
         """
         Load the task objects
         """
+
+        friction_list = {
+            "steel": {
+                "steel": 0.4,
+                "plastic": 0.2,
+                "wood": 0.5,
+                "rubber": 1.0,
+            },
+            "plastic": {
+                "steel": 0.2,
+                "plastic": 0.25,
+                "wood": 0.3,
+                "rubber": 0.6,
+            },
+            "wood": {
+                "steel": 0.5,
+                "plastic": 0.3,
+                "wood": 0.5,
+                "rubber": 0.9,
+            },
+            "rubber": {
+                "steel": 0.2,
+                "plastic": 0.6,
+                "wood": 0.9,
+                "rubber": 1.8,
+            }
+        }
+
+        self.materials = [task_obj.get('material') for task_obj in task_objects]
+        self.friction = friction_list[self.materials[0]][self.materials[1]]
+        self.task_objects = task_objects
+
         for task_obj in task_objects:
             if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                DecomposedObject(self._mj_spec, task_obj)
+                _object = DecomposedObject(self._mj_spec, task_obj, self.friction)
             elif task_obj.get('mesh_type') in ['mesh']:
-                MeshObject(self._mj_spec, task_obj)
+                MeshObject(self._mj_spec, task_obj, self.friction)
 
+        return _object.start_position_hole, _object.insertion_depth
     
     def compile_model(self):
         """

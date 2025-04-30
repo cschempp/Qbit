@@ -1,0 +1,91 @@
+env_objects:
+- attach_body: world
+  attach_pose:
+    position:
+    - 0
+    - -0.35
+    - 0.15
+    quaternion:
+    - 0.5
+    - 0.5
+    - 0.5
+    - 0.5
+  mesh_path: /workspace/qbit/assets/task_env/lab_tables/tisch_neu_s0.obj
+  mesh_type: mesh
+  obj_name: table
+  scale:
+  - 1
+  - 1
+  - 1
+robot:
+  base_pose:
+    position:
+    - 0.2
+    - 0
+    - 0.95
+    quaternion:
+    - 0
+    - 0
+    - 0
+    - -1
+  name: ur5e
+  robot_config_path: /workspace/qbit/configs/robots/ur5e.yaml
+task_objects:
+- attach_body: world
+  attach_pose:
+    position:
+    - -0.4
+    - 0.0
+    - 0.951
+    quaternion:
+    - 0
+    - 0.7071068
+    - -0.7071068
+    - 0
+  contact:
+    condim: 3
+    friction: 0.12
+  mass: 0.001
+  material: rubber
+  mesh_color:
+  - 0.0
+  - 1
+  - 0.0
+  - 0.8
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_18.183x27.704x36.729/decomposed_fine
+  mesh_type: coacd
+  obj_name: box_18.183x27.704x36.729_female
+  obj_type: box
+  scale:
+  - 0.001005
+  - 0.001005
+  - 0.001005
+- attach_body: tool0
+  attach_pose:
+    position:
+    - 0
+    - 0
+    - 0.11
+    quaternion:
+    - 1
+    - 0
+    - 0
+    - 0
+  contact:
+    condim: 3
+    friction: 0.12
+  mass: 0.0001
+  material: rubber
+  mesh_color:
+  - 1
+  - 0
+  - 0
+  - 1
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_18.183x27.704x36.729/box_18.183x27.704x36.729_male.stl
+  mesh_type: mesh
+  obj_name: box_18.183x27.704x36.729_male
+  obj_type: box
+  scale:
+  - 0.001
+  - 0.001
+  - 0.001

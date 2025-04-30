@@ -21,29 +21,35 @@ env_objects:
 
 task_objects:
   - obj_name: hole
+    obj_type: cylinder
     mesh_type: coacd # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/peg_in_hole_simple/assets/decomposed_fine
+    mesh_path: /workspace/qbit/assets/task_env/primitives/box_30.831x11.208x30.872/decomposed_fine
     attach_body: 'world'
     attach_pose:
-      position: [-0.4, 0.0, 0.95]
-      quaternion: [0.7071068, 0.7071068, 0, 0] # wxyz
+      position: [-0.4, 0.0, 0.951]
+      # quaternion: [0.7071068, 0, 0,  0.7071068] # wxyz
+      quaternion: [0, 0.7071068, -0.7071068, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
+    material: "rubber"
     mesh_color: [0.0, 1, 0.0, 0.8]
     contact:
       condim: 3
-      friction: 0.5
+      friction: 0.12
 
   - obj_name: peg
+    obj_type: cylinder
     mesh_type: mesh # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/peg_in_hole_simple/assets/simple_example_peg.obj
+    mesh_path: /workspace/qbit/assets/task_env/primitives/box_30.831x11.208x30.872/box_30.831x11.208x30.872_male.stl
     attach_body: 'tool0'
     attach_pose:
       position: [0, 0, 0.11]
-      quaternion: [ 0.5, 0.5, 0.5, 0.5 ] # wxyz
+      # quaternion: [ 0.5, 0.5, 0.5, 0.5 ] # wxyz
+      quaternion: [1, 0, 0, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mesh_color: [1, 0, 0, 1]
     mass: 0.0001 # set the mass to 0.0001 to avoid the additional compensation (calibration)
+    material: "steel"
     contact:
       condim: 3
-      friction: 0.5
+      friction: 0.12

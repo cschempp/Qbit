@@ -45,7 +45,7 @@ class UR5eMjArm(RobotBase):
         Move the ee to the desired pose
         Using the ik solver to compute the joint angles
         """
-        print("Move to eef pose:", eef_pose)
+        # print("Move to eef pose:", eef_pose)
         eef_pose_T = T(
             translation=eef_pose[:3],
             quaternion=eef_pose[3:]
@@ -54,8 +54,8 @@ class UR5eMjArm(RobotBase):
         q_goal = self.ik_solver.ik(eef_pose_T.matrix, q_current)
         self._goal_joint_pos = q_goal
 
-        print("Q current: ", q_current)
-        print("Goal joint pos: ", q_goal)
+        # print("Q current: ", q_current)
+        # print("Goal joint pos: ", q_goal)
 
         if executing:
             qpos_err = np.linalg.norm(self._mj_data.qpos - q_goal)
@@ -81,7 +81,8 @@ class UR5eMjArm(RobotBase):
             q_vel_curr)
         # forwards the joint command to the mujoco ctrl
         # print("Joint command: ", q_cmd)
-        self._mj_data.ctrl[0: 6] = q_cmd
+        self._mj_data.ctrl[0: 6] = q_cmd + q_pos_curr
+        # print(q_cmd)
         return
 
     def load_ik_solver(self):

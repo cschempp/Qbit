@@ -35,15 +35,16 @@ class JointPositionController:
         q_pos_err = np.array(q_goal - q_start)
         
         # I-term
-        # self.sum_q_err += q_pos_err
-        # q_corr =  self.KP * q_pos_err + 0.01 * self.sum_q_err  # + self.KD * q_vel
+        self.sum_q_err += q_pos_err
+        q_corr =  self._kp * q_pos_err #+ 0.0001 * self.sum_q_err  #+ self._kd * q_vel
         
         # PD_term
-        q_corr =  self._kp * q_pos_err + self._kd * q_vel
+        # q_corr =  self._kp * q_pos_err + self._kd * q_vel
         
-        max_vel = self._joint_vel_max * self._control_loop_dt
-        q_corr = np.clip(q_corr, -max_vel, max_vel)
-        q_cmd = q_start + q_corr
+        #max_vel = self._joint_vel_max * self._control_loop_dt
+        q_corr = np.clip(q_corr, -self._joint_vel_max, self._joint_vel_max)
+
+        q_cmd = q_corr
         
         # logger.warning(f"Q_START: {q_start}")
         # logger.warning(f"Q_POS_ERR: {q_pos_err}")

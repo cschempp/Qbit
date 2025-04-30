@@ -10,26 +10,32 @@ import numpy as np
 import mujoco
 import mujoco.viewer
 import copy
+import glob
+import os
 
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.utils.data_recording_utils import DataRecording
 from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion
+from qbit.sim_envs.mujoco_env_base import MujocoEnvBase
+from qbit.utils.mesh_processing import MeshObjects
 
+import yaml
 
 NUM_RUNS = 300
 
-RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp1_decomposed_mesh"
+RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe"
 
 SIM_TIMESTEP = 0.001
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
+
 JOINT_POSITION_CONTROL_T = 0.001  # Second
 
-POS_RANDOM_LIMIT = 0.001 # meter
-ROT_RANDOM_LIMIT = 1.5 # degree
+POS_RANDOM_LIMIT = 0.0 # meter
+ROT_RANDOM_LIMIT = 0.0 # degree
 
 
 
@@ -54,17 +60,18 @@ class PositionBasedInsertion(MjEnvInsertion):
             server_modus,
         )
         
-        self.insertion_goal_T = T(
-            translation = [0.6, 0.0, 0.156],
-            quaternion = [0.707, 0.707, 0.0, 0.0]
-        )
+        # self.insertion_goal_T = T(
+        #     translation = [0.6, 0.0, 0.115], #[0.6, 0.0, 0.15],
+        #     quaternion = [0.707, 0.707, 0.0, 0.0]
+        # )
         
         self.eef_position_controller = EEFPositionController(
             kp = 2,
             eef_pos_vel_max = np.array([0.1, 0.1, 0.1]) * 4
         )
         
-        self.data_eva = DataRecording(object_type="peg", material_female="steel", material_male="steel")
+        self.data_eva = DataRecording(task_env_config_path=task_env_config_path)
+
 
     def termination_data_collection(self,
                                     current_eef_pose_T: T,
@@ -104,9 +111,9 @@ class PositionBasedInsertion(MjEnvInsertion):
                 joint_states=current_joint_state
             )
             
-            print(f"Measured wrench from FTS: {measured_wrench}")
-            print(f"Current EEF pos: {current_eef_pose_T.translation}")
-            print(f"Currnet EEF rot: {current_eef_pose_T.euler_rotation * 180 / np.pi}")
+            # print(f"Measured wrench from FTS: {measured_wrench}")
+            # print(f"Current EEF pos: {current_eef_pose_T.translation}")
+            # print(f"Currnet EEF rot: {current_eef_pose_T.euler_rotation * 180 / np.pi}")
 
             # Check the termination condition
             if self.termination(current_eef_pose_T):
@@ -120,7 +127,7 @@ class PositionBasedInsertion(MjEnvInsertion):
                 q_init = self.robot.get_current_joint_state()[0],
                 return_q_cmd=False
             )
-            
+
             # Joint position control
             self.robot.move_to_eef_pose(
                 next_eef_goal.get_pos_quat_list(quat_format='xyzw'),
@@ -143,7 +150,7 @@ class PositionBasedInsertion(MjEnvInsertion):
         Main function to execute the insertion task
         """
         
-        with mujoco.viewer.launch_passive(self._mj_model, self._mj_data) as viewer:
+        with mujoco.viewer.launch_passive(self._mj_model, self._mj_data, show_left_ui=False, show_right_ui=False) as viewer:
             
             self.update_view_scale()
             update_view_camera_parameter(viewer)
@@ -151,7 +158,8 @@ class PositionBasedInsertion(MjEnvInsertion):
             viewer.sync()
             
             start_pose_T, goal_pose_T = self.get_fixed_start_and_goal_pose()
-
+            print(goal_pose_T)
+            print("++++++++++++++++++++++++++++++++++++++")
             # Move the robot to the initial position
             self.robot.move_to_eef_pose(
                 start_pose_T.get_pos_quat_list(quat_format='xyzw'),
@@ -161,6 +169,8 @@ class PositionBasedInsertion(MjEnvInsertion):
             viewer.sync()
 
             self.insertion(goal_pose_T, viewer)
+            self.data_eva.plot_data()
+            
             return
 
 
@@ -176,6 +186,8 @@ class PositionBasedInsertion(MjEnvInsertion):
 
         self.insertion(goal_pose_T, None)
 
+        self.data_eva.plot_data()
+
         return
 
 
@@ -184,8 +196,46 @@ if __name__ == "__main__":
     
     task_env_config_path = "/workspace/qbit/configs/envs/ur5e_peg_task.yaml"
     
-    mj = PositionBasedInsertion(
-        task_env_config_path=task_env_config_path,
-        server_modus=True
-        )
-    mj.exec_insertion_headless()
+    primitives_paths = glob.glob(os.path.join("qbit", "assets", "task_env", "primitives", "*"))
+    materials = ["steel", "plastic", "wood", "rubber"]
+
+    for prim_path in primitives_paths:
+        for material_male in materials:
+            for material_female in materials:
+                
+                config = MujocoEnvBase.parse_qbit_config_yaml(task_env_config_path)
+                prim_name = prim_path.split(os.sep)[-1]
+                prim_type = prim_name.split("_")[0]
+                mesh_path_hole = os.path.join(os.sep,"workspace", prim_path, "decomposed_fine")
+                mesh_path_peg = os.path.join(os.sep,"workspace", prim_path, prim_name + "_male.stl")
+
+                nzfilename = prim_type + "_" + prim_name + "_" + "male" + "_" + material_male + "_" + material_female + ".npz"
+                RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe"
+                if os.path.exists(os.path.join(RESULT_DIR, prim_name, nzfilename)):
+                    print(nzfilename + " already simualted. skipping.")
+                    continue
+
+                mo = MeshObjects(os.path.join(os.sep, "workspace", prim_path, prim_name + "_female.stl"))
+                mo.decomposition_with_coacd(threshold=0.01)
+
+                # hole
+                config["task_objects"][0]["obj_name"] = prim_name + "_female"
+                config["task_objects"][0]["obj_type"] = prim_type
+                config["task_objects"][0]["mesh_path"] = mesh_path_hole
+                config["task_objects"][0]["material"] = material_female
+                config["task_objects"][0]["scale"] = [0.001005, 0.001005, 0.001005]
+                # peg
+                config["task_objects"][1]["obj_name"] = prim_name + "_male"
+                config["task_objects"][1]["obj_type"] = prim_type
+                config["task_objects"][1]["mesh_path"] = mesh_path_peg
+                config["task_objects"][1]["material"] = material_male
+
+                with open('/workspace/qbit/configs/envs/data.yaml', 'w') as outfile:
+                    yaml.dump(config, outfile, default_flow_style=False)
+
+                task_env_config_path_ = "/workspace/qbit/configs/envs/data.yaml"
+                mj = PositionBasedInsertion(
+                    task_env_config_path=task_env_config_path_,
+                    server_modus=True
+                    )
+                mj.exec_insertion()
