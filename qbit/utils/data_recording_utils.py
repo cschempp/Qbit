@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 from qbit.sim_envs.mujoco_env_base import MujocoEnvBase
 
+
 friction_list = {
             "steel": {
                 "steel": 0.4,

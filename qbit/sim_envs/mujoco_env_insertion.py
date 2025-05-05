@@ -62,7 +62,7 @@ class MjEnvInsertion(MujocoEnvBase):
         start_position_hole, insertion_depth = self.load_env(task_env_config_path)
         
         self.insertion_goal_T = T(
-            translation = [0.6, 0.0, insertion_depth/2 + 0.11 + 0.001],
+            translation = [0.6, 0.0, insertion_depth/2 + 0.11 + 0.002],
             quaternion = [0.707, 0.707, 0.0, 0.0]
         )
         

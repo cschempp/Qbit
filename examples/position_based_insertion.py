@@ -186,7 +186,7 @@ class PositionBasedInsertion(MjEnvInsertion):
 
         self.insertion(goal_pose_T, None)
 
-        self.data_eva.plot_data()
+        # self.data_eva.plot_data()
 
         return
 
@@ -238,4 +238,4 @@ if __name__ == "__main__":
                     task_env_config_path=task_env_config_path_,
                     server_modus=True
                     )
-                mj.exec_insertion()
+                mj.exec_insertion_headless()
