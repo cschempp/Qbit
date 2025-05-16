@@ -129,7 +129,7 @@ class MujocoEnvBase:
                 "steel": 0.4,
                 "plastic": 0.2,
                 "wood": 0.5,
-                "rubber": 1.0,
+                "rubber": 0.2,
             },
             "plastic": {
                 "steel": 0.2,

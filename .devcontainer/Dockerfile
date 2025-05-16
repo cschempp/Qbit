@@ -61,11 +61,11 @@ RUN git clone https://github.com/mjd3/tracikpy.git \
     swig \
     && rm -rf /var/lib/apt/lists/*
 RUN cd /opt/devcon_lib/tracikpy \
-    && pip install .
+    && pip3 install .
 
 
 ##############################################################################
 ##                               Pybullet                                   ##
 ##############################################################################
-ADD requirements.txt /tmp
-RUN pip --no-cache-dir install -r /tmp/requirements.txt
+COPY requirements.txt /tmp
+RUN pip3 --no-cache-dir install -r /tmp/requirements.txt
