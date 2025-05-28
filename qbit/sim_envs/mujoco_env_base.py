@@ -13,7 +13,7 @@ import mujoco.viewer
 
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
-from qbit.objects.object_base import DecomposedObject, MeshObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject
 from qbit.objects.env_objects import MjEnvObjects
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.interfaces.grpc.mj_grpc_proxy import QbitMjGrpcProxy
@@ -156,10 +156,20 @@ class MujocoEnvBase:
         self.task_objects = task_objects
 
         for task_obj in task_objects:
-            if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                _object = DecomposedObject(self._mj_spec, task_obj, self.friction)
-            elif task_obj.get('mesh_type') in ['mesh']:
-                MeshObject(self._mj_spec, task_obj, self.friction)
+            if task_obj["obj_name"] == "hole":
+                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
+                    _object = DecomposedObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['mesh']:
+                    _object = MeshObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['flexcomp']:
+                    _object = FlexcompObject(self._mj_spec, task_obj, self.friction)
+            else:
+                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
+                    DecomposedObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['mesh']:
+                    MeshObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['flexcomp']:
+                    FlexcompObject(self._mj_spec, task_obj, self.friction)
 
         return _object.start_position_hole, _object.insertion_depth
     
@@ -169,6 +179,7 @@ class MujocoEnvBase:
         all active components such as the robot arm, gripper, and task objects.
         """
         self._mj_model = self._mj_spec.compile()
+        self._mj_model.opt.timestep = self._sim_timestep
         self._mj_data = mujoco.MjData(self._mj_model)
         
         print("Compiled the model")

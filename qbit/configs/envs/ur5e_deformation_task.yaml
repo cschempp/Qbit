@@ -24,15 +24,15 @@ data_recording:
 task_objects:
   - obj_name: hole
     obj_type: cylinder
-    mesh_type: coacd # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/primitives/box_30.831x11.208x30.872/decomposed_fine
+    mesh_type: flexcomp # mesh / sphere / coacd
+    mesh_path: /workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.msh
     attach_body: 'world'
     attach_pose:
       position: [-0.4, 0.0, 0.951]
-      # quaternion: [0.7071068, 0, 0,  0.7071068] # wxyz
-      quaternion: [0, 0.7071068, -0.7071068, 0] # wxyz
+      quaternion: [0.7071068, 0, 0,  0.7071068] # wxyz
+      # quaternion: [1, 0, 0, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
-    mass: 0.001
+    mass: 1.0
     material: "rubber"
     mesh_color: [0.0, 1, 0.0, 0.8]
     contact:
@@ -42,7 +42,7 @@ task_objects:
   - obj_name: peg
     obj_type: cylinder
     mesh_type: mesh # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/primitives/box_30.831x11.208x30.872/box_30.831x11.208x30.872_male.stl
+    mesh_path: /workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl
     attach_body: 'tool0'
     attach_pose:
       position: [0, 0, 0.11]
@@ -50,7 +50,7 @@ task_objects:
       quaternion: [1, 0, 0, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mesh_color: [1, 0, 0, 1]
-    mass: 0.0001 # set the mass to 0.0001 to avoid the additional compensation (calibration)
+    mass: 0.1 # set the mass to 0.0001 to avoid the additional compensation (calibration)
     material: "steel"
     contact:
       condim: 3

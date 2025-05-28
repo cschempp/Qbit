@@ -35,7 +35,7 @@ AVAILABLE_COMPONENTS = {
 
 
 
-class MjEnvInsertion(MujocoEnvBase):
+class MjEnvDeformation(MujocoEnvBase):
 
     
     def __init__(self,
@@ -232,9 +232,9 @@ class MjEnvInsertion(MujocoEnvBase):
 
 if __name__ == "__main__":
     
-    task_env_config_path = "qbit/configs/envs/ur5e_peg_task.yaml"
+    task_env_config_path = "qbit/configs/envs/ur5e_deformation_task.yaml"
     
-    mj = MjEnvInsertion(
+    mj = MjEnvDeformation(
         task_env_config_path=task_env_config_path,
         server_modus=True
         )

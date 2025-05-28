@@ -58,12 +58,12 @@ class UR5eMjArm(RobotBase):
         # print("Goal joint pos: ", q_goal)
 
         if executing:
-            qpos_err = np.linalg.norm(self._mj_data.qpos - q_goal)
+            qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
             i = 0
             while qpos_err > qpos_thresh:
                 self.spin()
                 mujoco.mj_step(self._mj_model, self._mj_data)
-                qpos_err = np.linalg.norm(self._mj_data.qpos - q_goal)
+                qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
                 i += 1
             print(f"[MOVE TO EEF POSE] Reached the goal in {i} steps with ERROR: {qpos_err}")
             return q_goal
@@ -82,6 +82,7 @@ class UR5eMjArm(RobotBase):
         # forwards the joint command to the mujoco ctrl
         # print("Joint command: ", q_cmd)
         self._mj_data.ctrl[0: 6] = q_cmd + q_pos_curr
+        # self._mj_data.qpos[0:6] =  q_cmd + q_pos_curr
         # print(q_cmd)
         return
 

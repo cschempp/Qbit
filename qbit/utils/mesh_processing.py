@@ -15,7 +15,7 @@ class MeshObjects:
     def __init__(self, obj_path):
         
         self._obj_path = obj_path
-        self._decomposed_mesh_dir_name = "decomposed_fine"
+        self._decomposed_mesh_dir_name = "decomposed_fine_male"
         
         self._decomposed_mesh_dir = os.path.join(
             os.path.dirname(os.path.abspath(self._obj_path)),

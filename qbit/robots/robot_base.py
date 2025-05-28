@@ -74,9 +74,10 @@ class RobotBase:
         """
         Get the current joint state
         """
+        # first six joint states correspond to robot joints
         return (
-            self._mj_data.qpos,
-            self._mj_data.qvel
+            self._mj_data.qpos[:6],
+            self._mj_data.qvel[:6]
         )
 
     

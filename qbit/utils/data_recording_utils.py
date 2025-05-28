@@ -65,7 +65,7 @@ class DataRecording():
         self.material_female = self.config["task_objects"][0]["material"]
         self.friction = friction_list[self.material_male][self.material_female]
 
-        self.RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe"
+        self.RESULT_DIR = os.path.join("/workspace/examples/experiment_results/position_based/", self.config["data_recording"]["save_folder"])
         self.RESULT_DIR = os.path.join(self.RESULT_DIR, self.object_name[:-5])
 
         if not os.path.exists(self.RESULT_DIR):
@@ -104,6 +104,7 @@ class DataRecording():
         #          object_type = self.object_type,
         #          material_male = self.material_male,
         #          material_female = self.material_female)
+        
         position_array = xr.DataArray(self.eef_pos, coords=[self.timestamp, ["x", "y", "z"]], dims=["time", "axis"], attrs=dict(units="meter"))
         orientation_array = xr.DataArray(self.eef_qua, coords=[self.timestamp, ["x", "y", "z", "w"]], dims=["time", "axis"], attrs=dict(units="radian"))
         force_array = xr.DataArray(self.eef_fts[:,:3], coords=[self.timestamp, ["x", "y", "z"]], dims=["time", "axis"], attrs=dict(units="newton"))

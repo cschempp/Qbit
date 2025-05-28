@@ -17,7 +17,7 @@ from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.utils.data_recording_utils import DataRecording
-from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion
+from qbit.sim_envs.mujoco_env_deformation import MjEnvDeformation
 from qbit.sim_envs.mujoco_env_base import MujocoEnvBase
 from qbit.utils.mesh_processing import MeshObjects
 
@@ -27,7 +27,7 @@ NUM_RUNS = 300
 
 RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe"
 
-SIM_TIMESTEP = 0.001
+SIM_TIMESTEP = 0.00001
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
@@ -39,7 +39,7 @@ ROT_RANDOM_LIMIT = 0.0 # degree
 
 
 
-class PositionBasedInsertion(MjEnvInsertion):
+class PositionBasedDeformation(MjEnvDeformation):
     
     
     def __init__(self,
@@ -51,7 +51,7 @@ class PositionBasedInsertion(MjEnvInsertion):
                  server_modus: bool = False,
                  ):
         
-        super(PositionBasedInsertion, self).__init__(
+        super(PositionBasedDeformation, self).__init__(
             task_env_config_path,
             sim_timestep,
             rendering_timestep,
@@ -73,20 +73,16 @@ class PositionBasedInsertion(MjEnvInsertion):
         self.data_eva = DataRecording(task_env_config_path=task_env_config_path)
 
 
-    def termination_data_collection(self,
-                                    current_eef_pose_T: T,
-                                    measured_wrench: np.ndarray,
-                                    insertion_step: int,):
-        if any([
-            current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + 0.01,
-            np.max(np.abs(measured_wrench)) > 20,
-            insertion_step > 1000
-        ]):
-            self.run_id += 1
-            self.data_id = 0
+    def termination(self, 
+                    current_eef_pose_T: T,
+                    threshold: float = 0.0001
+                    ) -> bool:
+
+        if current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + threshold:
             return True
-        else:
-            return False
+        if self.i >= 500:
+            return True
+        return False
 
 
     def insertion(self,
@@ -194,48 +190,17 @@ class PositionBasedInsertion(MjEnvInsertion):
 
 if __name__ == "__main__":
     
-    task_env_config_path = "/workspace/qbit/configs/envs/ur5e_peg_task.yaml"
+    task_env_config_path = "/workspace/qbit/configs/envs/ur5e_deformation_task.yaml"
     
     primitives_paths = glob.glob(os.path.join("qbit", "assets", "task_env", "primitives", "*"))
     materials = ["steel", "plastic", "wood", "rubber"]
-    RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe"
+    RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_pipe_deformation"
 
-    for prim_path in primitives_paths:
-        for material_male in materials:
-            for material_female in materials:
-                
-                config = MujocoEnvBase.parse_qbit_config_yaml(task_env_config_path)
-                prim_name = prim_path.split(os.sep)[-1]
-                prim_type = prim_name.split("_")[0]
-                mesh_path_hole = os.path.join(os.sep,"workspace", prim_path, "decomposed_fine")
-                mesh_path_peg = os.path.join(os.sep,"workspace", prim_path, prim_name + "_male.stl")
 
-                nzfilename = prim_type + "_" + prim_name + "_" + "male" + "_" + material_male + "_" + material_female + ".npz"
-                if os.path.exists(os.path.join(RESULT_DIR, prim_name, nzfilename)):
-                    print(nzfilename + " already simualted. skipping.")
-                    continue
-
-                mo = MeshObjects(os.path.join(os.sep, "workspace", prim_path, prim_name + "_female.stl"))
-                mo.decomposition_with_coacd(threshold=0.01)
-
-                # hole
-                config["task_objects"][0]["obj_name"] = prim_name + "_female"
-                config["task_objects"][0]["obj_type"] = prim_type
-                config["task_objects"][0]["mesh_path"] = mesh_path_hole
-                config["task_objects"][0]["material"] = material_female
-                config["task_objects"][0]["scale"] = [0.001005, 0.001005, 0.001005]
-                # peg
-                config["task_objects"][1]["obj_name"] = prim_name + "_male"
-                config["task_objects"][1]["obj_type"] = prim_type
-                config["task_objects"][1]["mesh_path"] = mesh_path_peg
-                config["task_objects"][1]["material"] = material_male
-
-                with open('/workspace/qbit/configs/envs/data.yaml', 'w') as outfile:
-                    yaml.dump(config, outfile, default_flow_style=False)
-
-                task_env_config_path_ = "/workspace/qbit/configs/envs/data.yaml"
-                mj = PositionBasedInsertion(
-                    task_env_config_path=task_env_config_path_,
-                    server_modus=True
-                    )
-                mj.exec_insertion_headless()
+    # task_env_config_path_ = "/workspace/qbit/configs/envs/data.yaml"
+    mj = PositionBasedDeformation(
+        task_env_config_path=task_env_config_path,
+        server_modus=True,
+        sim_timestep=SIM_TIMESTEP
+        )
+    mj.exec_insertion()

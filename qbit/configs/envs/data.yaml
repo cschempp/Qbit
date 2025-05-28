@@ -1,3 +1,5 @@
+data_recording:
+  save_folder: exp_pipe_deformation
 env_objects:
 - attach_body: world
   attach_pose:
@@ -52,10 +54,10 @@ task_objects:
   - 1
   - 0.0
   - 0.8
-  mesh_path: /workspace/qbit/assets/task_env/primitives/trapezoid_49.039_6.149_5.245/decomposed_fine
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_34.417x38.438x8.918/decomposed_fine_male
   mesh_type: coacd
-  obj_name: trapezoid_49.039_6.149_5.245_female
-  obj_type: trapezoid
+  obj_name: box_34.417x38.438x8.918_female
+  obj_type: box
   scale:
   - 0.001005
   - 0.001005
@@ -81,10 +83,10 @@ task_objects:
   - 0
   - 0
   - 1
-  mesh_path: /workspace/qbit/assets/task_env/primitives/trapezoid_49.039_6.149_5.245/trapezoid_49.039_6.149_5.245_male.stl
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_34.417x38.438x8.918/box_34.417x38.438x8.918_male.stl
   mesh_type: mesh
-  obj_name: trapezoid_49.039_6.149_5.245_male
-  obj_type: trapezoid
+  obj_name: box_34.417x38.438x8.918_male
+  obj_type: box
   scale:
   - 0.001
   - 0.001
