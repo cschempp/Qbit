@@ -7,6 +7,7 @@ import glob
 import numpy as np
 import trimesh
 import coacd
+import subprocess
 
 
 class MeshObjects:
@@ -15,7 +16,7 @@ class MeshObjects:
     def __init__(self, obj_path):
         
         self._obj_path = obj_path
-        self._decomposed_mesh_dir_name = "decomposed_fine_male"
+        self._decomposed_mesh_dir_name = obj_path.split(os.sep)[-1][:-4] + "_decomposed"
         
         self._decomposed_mesh_dir = os.path.join(
             os.path.dirname(os.path.abspath(self._obj_path)),
@@ -44,7 +45,6 @@ class MeshObjects:
 
         scene.show(flags={'wireframe':True})
 
-
     def show_mesh(self):
         scene = trimesh.Scene()
         mesh = trimesh.load(self._obj_path)
@@ -53,8 +53,9 @@ class MeshObjects:
         
         scene.show(flags={'wireframe':True})
 
-
     def decomposition_with_vhacd(self):
+        self._decomposed_mesh_dir += "_vhacd"
+
         mesh = trimesh.load(self._obj_path)
         decomposed_meshes = trimesh.decomposition.convex_decomposition(mesh)
         
@@ -68,9 +69,10 @@ class MeshObjects:
         # scene.show(flags={'wireframe':True})
         # print("Decomposed meshes: ", decomposed_meshes)
 
-
     def decomposition_with_coacd(self, threshold=0.02):
         
+        self._decomposed_mesh_dir += "_coacd"
+
         if not os.path.exists(self._decomposed_mesh_dir):
             os.makedirs(self._decomposed_mesh_dir)
             
@@ -82,8 +84,40 @@ class MeshObjects:
                 mesh = trimesh.Trimesh(p[0], p[1])
                 mesh.visual.face_colors = trimesh.visual.color.random_color()
                 mesh.export(f"{self._decomposed_mesh_dir}/part_{i}.obj")
-            print(f"Decomposed meshes ({i} parts) are saved in {self._decomposed_mesh_dir}")
+            print(f"[MESH PROCESSING] Decomposed meshes ({i} parts) are saved in {self._decomposed_mesh_dir}")
         
+    def convert_stl_to_msh(self,):
+        """
+        Converts an STL file to a tetrahedral GMSH mesh using fTetWild and GMSH.
+        
+        Parameters:
+        - ftetwild_path: Path to the fTetWild executable
+        - input_stl_path: Path to input .stl file
+        - output_msh_path: Desired output .msh file path
+        - gmsh_format: 'msh2' or 'msh4' for MuJoCo compatibility
+        """
+        ftetwild_path = "/workspace/qbit/objects/fTetWild/build/FloatTetwild_bin"
+        self.output_msh_path = self._obj_path[:-4] + ".msh"
+
+        if not os.path.exists(self.output_msh_path):
+            assert os.path.isfile(self._obj_path), f"[MESH PROCESSING] Input STL file not found: {self._obj_path}"
+
+            # Step 1: Run fTetWild
+            print(f"[MESH PROCESSING] Running fTetWild on {self._obj_path}...")
+            try:
+                subprocess.run(
+                    [ftetwild_path, "-i", self._obj_path, "-o", self.output_msh_path, "--coarsen"],
+                    check=True
+                )
+            except subprocess.CalledProcessError:
+                print("[MESH PROCESSING] Error: fTetWild failed to run.")
+                return False
+
+            print("[MESH PROCESSING] Conversion completed successfully. \n")
+            return True      
+
+        print(f"[MESH PROCESSING] {self.output_msh_path} already exists. Skipping converting from stl to msh. \n")
+
 
 if __name__ == "__main__":
     
