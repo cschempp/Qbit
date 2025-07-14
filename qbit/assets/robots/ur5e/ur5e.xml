@@ -1,10 +1,10 @@
 <mujoco model="ur5e">
   <compiler angle="radian" eulerseq="XYZ" meshdir="/workspace/qbit/assets/robots/ur5e/assets" autolimits="true"/>
-
-  <option integrator="implicitfast" cone="elliptic" solver="Newton" timestep="0.001"
+  <size memory="1G" />
+  <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.001" tolerance="1e-6" 
           gravity="0.0 0.0 0.0"
           o_solref="0.02 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="0.3 0.005 0.0001">
-    <!-- <flag override="enable" /> -->
+    <flag override="enable" />
   </option>
   <!-- <option integrator="implicitfast" cone="elliptic" solver="Newton" timestep="0.001" gravity="0.0 0.0 0.0"/> -->
   <!-- <option integrator="RK4" cone="elliptic" solver="Newton" timestep="0.001" /> -->
@@ -19,13 +19,13 @@
       <default class="size3">
         <default class="size3_limited">
           <joint range="-3.1415 3.1415"/>
-          <general ctrlrange="-3.1415 3.1415" ctrllimited="false" forcelimited="false"/>
+          <general gainprm="2000" ctrlrange="-3.1415 3.1415" ctrllimited="false" forcelimited="false"/>
         </default>
       </default>
       <default class="size1">
         <!-- <general gainprm="10000" biasprm="0 -10000 -2000" forcerange="-58 58"/> -->
-        <general gainprm="2000" biasprm="0 -2000 -500" forcerange="-28 28" ctrllimited="false" forcelimited="false"/>
-        <!-- <general gainprm="500" biasprm="0 -500 -100" forcerange="-28 28"/> -->
+        <general gainprm="2000" biasprm="0 -2000 -500" forcerange="-120 120" ctrllimited="false" forcelimited="false"/>
+        <!-- <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="2000" biasprm="0 -2000 -400" forcerange="-120 120"/> -->
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>

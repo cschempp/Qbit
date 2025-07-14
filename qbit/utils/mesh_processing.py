@@ -92,9 +92,7 @@ class MeshObjects:
         
         Parameters:
         - ftetwild_path: Path to the fTetWild executable
-        - input_stl_path: Path to input .stl file
         - output_msh_path: Desired output .msh file path
-        - gmsh_format: 'msh2' or 'msh4' for MuJoCo compatibility
         """
         ftetwild_path = "/workspace/qbit/objects/fTetWild/build/FloatTetwild_bin"
         self.output_msh_path = self._obj_path[:-4] + ".msh"
@@ -106,7 +104,7 @@ class MeshObjects:
             print(f"[MESH PROCESSING] Running fTetWild on {self._obj_path}...")
             try:
                 subprocess.run(
-                    [ftetwild_path, "-i", self._obj_path, "-o", self.output_msh_path, "--coarsen"],
+                    [ftetwild_path, "-i", self._obj_path, "-o", self.output_msh_path, "--coarsen", "--no-binary"],
                     check=True
                 )
             except subprocess.CalledProcessError:

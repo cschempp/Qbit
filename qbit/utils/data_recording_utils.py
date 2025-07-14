@@ -11,25 +11,36 @@ friction_list = {
                 "plastic": 0.2,
                 "wood": 0.5,
                 "rubber": 1.0,
+                "feather": 0.2,
             },
             "plastic": {
                 "steel": 0.2,
                 "plastic": 0.25,
                 "wood": 0.3,
                 "rubber": 0.6,
+                "feather": 0.2,
             },
             "wood": {
                 "steel": 0.5,
                 "plastic": 0.3,
                 "wood": 0.5,
                 "rubber": 0.9,
+                "feather": 0.2,
             },
             "rubber": {
                 "steel": 0.2,
                 "plastic": 0.6,
                 "wood": 0.9,
                 "rubber": 1.8,
-            }
+                "feather": 0.2,
+            },
+            "feather": {
+                "steel": 0.2,
+                "plastic": 0.2,
+                "wood": 0.2,
+                "rubber": 0.2,
+                "feather": 0.2,
+            },
         }
 
 material_list = {
@@ -49,6 +60,10 @@ material_list = {
         "solref": [-1.0, -0.1],
         "density": 920, 
     },
+    "feather": {
+        "solref": [-1.0, -0.1],
+        "density": 1,
+    },
 }
 
 
@@ -59,10 +74,10 @@ class DataRecording():
         self.config = MujocoEnvBase.parse_qbit_config_yaml(task_env_config_path)
 
         # for PIPE
-        self.object_type = self.config["task_objects"][1]["obj_type"]
-        self.object_name = self.config["task_objects"][1]["obj_name"]
-        self.material_male = self.config["task_objects"][1]["material"]
-        self.material_female = self.config["task_objects"][0]["material"]
+        self.object_type = self.config["task_objects"][0]["obj_type"]
+        self.object_name = self.config["task_objects"][0]["obj_name"]
+        self.material_male = self.config["task_objects"][0]["material"]
+        self.material_female = self.config["task_objects"][1]["material"]
         self.friction = friction_list[self.material_male][self.material_female]
 
         self.RESULT_DIR = os.path.join("/workspace/examples/experiment_results/position_based/", self.config["data_recording"]["save_folder"])
@@ -117,14 +132,14 @@ class DataRecording():
             torque=torque_array,
             ), 
             attrs=dict(# male
-                    file_male=self.config["task_objects"][1]["obj_name"],
-                    type_male=self.config["task_objects"][1]["obj_type"],
+                    file_male=self.config["task_objects"][0]["obj_name"],
+                    type_male=self.config["task_objects"][0]["obj_type"],
                     material_male=self.material_male,
                     friction_male=self.friction,
                     density_male=material_list[self.material_male]["density"],
                     # female
-                    file_female=self.config["task_objects"][0]["obj_name"],
-                    type_female=self.config["task_objects"][0]["obj_type"],
+                    file_female=self.config["task_objects"][1]["obj_name"],
+                    type_female=self.config["task_objects"][1]["obj_type"],
                     material_female=self.material_female,
                     friction_female=self.friction,
                     density_female=material_list[self.material_female]["density"],))
@@ -160,12 +175,12 @@ class DataRecording():
 
         for i,j in enumerate((1, 2, 3)):
             plt.subplot(2,3,j)
-            plt.plot(time, force[:,i], label=labels[j-1])
+            plt.plot(time, force[:,i]-force[0,i], label=labels[j-1])
             plt.legend(loc="upper right")
 
         for i,j in enumerate((4, 5, 6)):
             plt.subplot(2,3,j)
-            plt.plot(time, position[:,i], label=labels[j-1])
+            plt.plot(time, position[:,i]-position[0,i], label=labels[j-1])
             plt.legend(loc="upper right")
         
         plt.tight_layout()

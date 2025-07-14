@@ -22,36 +22,38 @@ data_recording:
   save_folder: "exp_pipe_deformation"
 
 task_objects:
-  - obj_name: hole
-    obj_type: cylinder
-    mesh_type: flexcomp # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl
-    attach_body: 'world'
-    attach_pose:
-      position: [-0.4, 0.0, 0.951]
-      quaternion: [0.7071068, 0, 0,  0.7071068] # wxyz
-      # quaternion: [1, 0, 0, 0] # wxyz
-    scale: [0.001, 0.001, 0.001]
-    mass: 1.0
-    material: "rubber"
-    mesh_color: [0.0, 1, 0.0, 0.8]
-    contact:
-      condim: 3
-      friction: 0.12
-
   - obj_name: peg
     obj_type: cylinder
-    mesh_type: coacd # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl
+    mesh_type: mesh # mesh / sphere / coacd
+    mesh_path: /workspace/qbit/assets/task_env/peg_in_hole_simple/assets/simple_example_peg.obj
     attach_body: 'tool0'
     attach_pose:
       position: [0, 0, 0.11]
-      # quaternion: [ 0.5, 0.5, 0.5, 0.5 ] # wxyz
+      # quaternion: [0.707, 0.707, 0, 0] # wxyz
       quaternion: [1, 0, 0, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mesh_color: [1, 0, 0, 1]
-    mass: 0.1 # set the mass to 0.0001 to avoid the additional compensation (calibration)
-    material: "steel"
+    mass: 0.01 # set the mass to 0.0001 to avoid the additional compensation (calibration)
+    material: "wood"
     contact:
-      condim: 3
+      condim: 1
+      friction: 0.12
+
+  - obj_name: hole
+    obj_type: box
+    mesh_type: flexcomp # mesh / sphere / coacd
+    mesh_path: /workspace/qbit/assets/task_env/primitives/box_39.921x30.325x35.137/box_39.921x30.325x35.137_male.stl
+    attach_body: 'world'
+    attach_pose:
+      position: [-0.4, 0.0, 0.951] # world
+      # position: [-0.4, 0.345, 0.82] # table_body
+      # quaternion: [0.7071068, 0, 0,  0.7071068] # wxyz
+      # quaternion: [1, 0, 0, 0] # wxyz
+      quaternion: [0, 0.7071068, -0.7071068, 0]
+    scale: [0.001, 0.001, 0.001]
+    mass: 0.01
+    material: "steel"
+    mesh_color: [0.0, 1, 0.0, 0.5]
+    contact:
+      condim: 1
       friction: 0.12

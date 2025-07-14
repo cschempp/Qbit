@@ -23,15 +23,15 @@ ik_eef_link: wrist_3_link
 controllers:
   joint_position_controller:
     vel_max: [3.14, 3.14, 3.14, 3.14, 3.14, 3.14]
-    kp: 3.0
-    kd: 0.02
-    control_loop: 0.001 # s
+    kp: 30.0 #0.1 #3.0
+    kd: 0.002
+    control_loop: 0.001 #0.000001 # s
   
   eef_position_controller:
-    vel_max: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+    vel_max: [10, 10, 10, 10, 10, 10]
     kp: [5, 5, 5, 2, 2, 2] # translation and rotation
     kd: [2, 2, 2, 0.2, 0.2, 0.2]
-    control_loop: 0.001 # s
+    control_loop: 0.001 #0.000001 # s
   
   eef_admittance_controller:
     vel_max: [0.1, 0.1, 0.1, 10, 10, 10]

@@ -112,3 +112,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         # print(model.body_pos)
         # print(data.xpos)
         # print("-" *30)
+
+        # get id of body via name
+        id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY.value, "peg_body")
+        peg_pos = data.xpos[id, :]

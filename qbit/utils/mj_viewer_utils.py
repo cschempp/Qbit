@@ -17,7 +17,7 @@ def update_view_camera_parameter(viewer, view_type = "default"):
     # viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1  
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1  
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = 1  
-    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = 1
+    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = 0
 
     # Default view
     viewer.cam.lookat[:] = np.array([-0.51057842, -0.39353146,  0.99606974])

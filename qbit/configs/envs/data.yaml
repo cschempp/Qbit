@@ -33,35 +33,6 @@ robot:
   name: ur5e
   robot_config_path: /workspace/qbit/configs/robots/ur5e.yaml
 task_objects:
-- attach_body: world
-  attach_pose:
-    position:
-    - -0.4
-    - 0.0
-    - 0.951
-    quaternion:
-    - 0
-    - 0.7071068
-    - -0.7071068
-    - 0
-  contact:
-    condim: 3
-    friction: 0.12
-  mass: 0.001
-  material: steel
-  mesh_color:
-  - 0.0
-  - 1
-  - 0.0
-  - 0.8
-  mesh_path: /workspace/qbit/assets/task_env/primitives/box_34.417x38.438x8.918/decomposed_fine_male
-  mesh_type: coacd
-  obj_name: box_34.417x38.438x8.918_female
-  obj_type: box
-  scale:
-  - 0.001005
-  - 0.001005
-  - 0.001005
 - attach_body: tool0
   attach_pose:
     position:
@@ -74,18 +45,47 @@ task_objects:
     - 0
     - 0
   contact:
-    condim: 3
+    condim: 1
     friction: 0.12
-  mass: 0.0001
-  material: rubber
+  mass: 0.01
+  material: steel
   mesh_color:
   - 1
   - 0
   - 0
   - 1
-  mesh_path: /workspace/qbit/assets/task_env/primitives/box_34.417x38.438x8.918/box_34.417x38.438x8.918_male.stl
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_14.724x7.261x10.791/box_14.724x7.261x10.791_male.stl
   mesh_type: mesh
-  obj_name: box_34.417x38.438x8.918_male
+  obj_name: box_14.724x7.261x10.791_male
+  obj_type: box
+  scale:
+  - 0.001
+  - 0.001
+  - 0.001
+- attach_body: world
+  attach_pose:
+    position:
+    - -0.4
+    - 0.0
+    - 0.951
+    quaternion:
+    - 0
+    - 0.7071068
+    - -0.7071068
+    - 0
+  contact:
+    condim: 1
+    friction: 0.12
+  mass: 0.01
+  material: steel
+  mesh_color:
+  - 0.0
+  - 1
+  - 0.0
+  - 0.5
+  mesh_path: /workspace/qbit/assets/task_env/primitives/box_14.724x7.261x10.791/box_14.724x7.261x10.791_male.stl
+  mesh_type: flexcomp
+  obj_name: box_14.724x7.261x10.791_female
   obj_type: box
   scale:
   - 0.001

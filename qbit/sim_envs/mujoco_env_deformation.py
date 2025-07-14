@@ -40,7 +40,7 @@ class MjEnvDeformation(MujocoEnvBase):
     
     def __init__(self,
                  task_env_config_path: str,
-                 sim_timestep: float = 0.001,
+                 sim_timestep: float = 0.00001,
                  rendering_timestep: float = 0.033,
                  rt_factor: float = 0.0,
                  headless: bool = False,
@@ -57,16 +57,16 @@ class MjEnvDeformation(MujocoEnvBase):
         self._headless = headless
         self._sim_time = 0
         self._last_render_time = 0
-
         
-        start_position_hole, insertion_depth = self.load_env(task_env_config_path)
+        _object_hole, _object_peg = self.load_env(task_env_config_path)
         
+        self.z_insertion_depth = 0.0 #.001e-3 #(_object_hole.insertion_depth)/2
         self.insertion_goal_T = T(
-            translation = [0.6, 0.0, insertion_depth/2 + 0.11 + 0.002],
+            translation = [0.6, 0.0, _object_peg.insertion_depth/2 + _object_hole.insertion_depth - self.z_insertion_depth + 0.11],
+            # translation = [0.6, 0.0, 0.0],
             quaternion = [0.707, 0.707, 0.0, 0.0]
         )
         
-        self.z_insertion_depth = insertion_depth # insertion depth
         
         self.compile_model()
         
@@ -169,7 +169,7 @@ class MjEnvDeformation(MujocoEnvBase):
         goal_pose = self.insertion_goal_T * rotation_axis_offset_T * offset_T * rotation_axis_offset_T.inverse()
         start_pose = copy.deepcopy(goal_pose)
 
-        start_pose.translation[2] += self.z_insertion_depth
+        start_pose.translation[2] += self.z_insertion_depth + 1.5e-3
         
         return start_pose, goal_pose
 

@@ -32,7 +32,7 @@ class EEFPositionController:
         self._kd = kd
         self._control_loop_dt = control_loop_dt
         self._joint_vel_max = joint_vel_max
-        self._eef_pos_vel_max = eef_pos_vel_max
+        self._eef_pos_vel_max = np.array([10, 10, 10]) #eef_pos_vel_max # 
         
         self.sum_q_err = np.zeros(6)
         

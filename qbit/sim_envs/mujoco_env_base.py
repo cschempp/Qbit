@@ -13,7 +13,7 @@ import mujoco.viewer
 
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
-from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject
 from qbit.objects.env_objects import MjEnvObjects
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.interfaces.grpc.mj_grpc_proxy import QbitMjGrpcProxy
@@ -81,9 +81,9 @@ class MujocoEnvBase:
         self.load_env_objects(self._config.get('env_objects'))
 
         # load task objects
-        start_position_hole, insertion_depth = self.load_task_objects(self._config.get('task_objects'))
+        _object_hole, _object_peg = self.load_task_objects(self._config.get('task_objects'))
 
-        return start_position_hole, insertion_depth
+        return _object_hole, _object_peg
         
         
 
@@ -130,12 +130,14 @@ class MujocoEnvBase:
                 "plastic": 0.2,
                 "wood": 0.5,
                 "rubber": 0.2,
+                "feather": 0.2,
             },
             "plastic": {
                 "steel": 0.2,
                 "plastic": 0.25,
                 "wood": 0.3,
                 "rubber": 0.6,
+                "feather": 0.2,
             },
             "wood": {
                 "steel": 0.5,
@@ -148,7 +150,18 @@ class MujocoEnvBase:
                 "plastic": 0.6,
                 "wood": 0.9,
                 "rubber": 1.8,
-            }
+                "feather": 0.2,
+            },
+            "feather": {
+                "steel": 0.2,
+                "plastic": 0.2,
+                "wood": 0.2,
+                "rubber": 0.2,
+                "feather": 0.2,
+            },
+            "normal": {
+                "normal": 0.4,
+            },
         }
 
         self.materials = [task_obj.get('material') for task_obj in task_objects]
@@ -156,22 +169,26 @@ class MujocoEnvBase:
         self.task_objects = task_objects
 
         for task_obj in task_objects:
-            if task_obj["obj_name"] == "hole":
+            if "female" in task_obj["obj_name"]:
                 if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                    _object = DecomposedObject(self._mj_spec, task_obj, self.friction)
+                    _object_hole = DecomposedObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['mesh']:
-                    _object = MeshObject(self._mj_spec, task_obj, self.friction)
+                    _object_hole = MeshObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['flexcomp']:
-                    _object = FlexcompObject(self._mj_spec, task_obj, self.friction)
+                    _object_hole = FlexcompObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sphere']:
+                    _object_hole = SpheredObject(self._mj_spec, task_obj, self.friction)
             else:
                 if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                    DecomposedObject(self._mj_spec, task_obj, self.friction)
+                    _object_peg = DecomposedObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['mesh']:
-                    MeshObject(self._mj_spec, task_obj, self.friction)
+                    _object_peg = MeshObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['flexcomp']:
-                    FlexcompObject(self._mj_spec, task_obj, self.friction)
+                    _object_peg = FlexcompObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sphere']:
+                    _object_peg = SpheredObject(self._mj_spec, task_obj, self.friction)
 
-        return _object.start_position_hole, _object.insertion_depth
+        return _object_hole, _object_peg
     
     def compile_model(self):
         """
@@ -180,6 +197,7 @@ class MujocoEnvBase:
         """
         self._mj_model = self._mj_spec.compile()
         self._mj_model.opt.timestep = self._sim_timestep
+
         self._mj_data = mujoco.MjData(self._mj_model)
         
         print("Compiled the model")
@@ -254,13 +272,13 @@ class MujocoEnvBase:
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_SITE
         # https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjtvisflag
         viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1
-
+        viewer.opt.label = mujoco.mjtLabel.mjLABEL_BODY
 
     def update_view_scale(self):
         self._mj_model.vis.scale.contactwidth = 0.01
         self._mj_model.vis.scale.contactheight = 0.01
         self._mj_model.vis.scale.forcewidth = 0.01
-        self._mj_model.vis.map.force = 0.00
+        self._mj_model.vis.map.force = 0.0
 
 
     def step_mj_simulation(self):

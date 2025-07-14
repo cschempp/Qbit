@@ -59,14 +59,13 @@ class MjEnvInsertion(MujocoEnvBase):
         self._last_render_time = 0
 
         
-        start_position_hole, insertion_depth = self.load_env(task_env_config_path)
+        _object_hole, _object_peg = self.load_env(task_env_config_path)
         
+        self.z_insertion_depth = _object_peg.insertion_depth # insertion depth
         self.insertion_goal_T = T(
-            translation = [0.6, 0.0, insertion_depth/2 + 0.11 + 0.002],
+            translation = [0.6, 0.0, _object_peg.insertion_depth/2 + _object_hole.insertion_depth - self.z_insertion_depth +0.04 + 0.11],
             quaternion = [0.707, 0.707, 0.0, 0.0]
-        )
-        
-        self.z_insertion_depth = insertion_depth # insertion depth
+        )        
         
         self.compile_model()
         
@@ -169,8 +168,8 @@ class MjEnvInsertion(MujocoEnvBase):
         goal_pose = self.insertion_goal_T * rotation_axis_offset_T * offset_T * rotation_axis_offset_T.inverse()
         start_pose = copy.deepcopy(goal_pose)
 
-        start_pose.translation[2] += self.z_insertion_depth
-        
+        start_pose.translation[2] += self.z_insertion_depth - 0.03
+        goal_pose.translation[2] -= 0.05    
         return start_pose, goal_pose
 
 
@@ -181,7 +180,7 @@ class MjEnvInsertion(MujocoEnvBase):
 
         if current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + threshold:
             return True
-        if self.i >= 300:
+        if self.i >= 250:
             return True
         return False
 

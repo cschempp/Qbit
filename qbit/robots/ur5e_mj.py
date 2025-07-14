@@ -31,16 +31,26 @@ class UR5eMjArm(RobotBase):
         self.load_ik_solver()
 
         # TODO: parse using xml file
-        self.tcp_id = 0
         self.base_link_name = 'base'
         self.base_id = 1
         self.tcp_body_name = 'tool0'
         self.tcp_id = 8
 
+    def get_q_goal(self, eef_pose):
+        eef_pose_T = T(
+            translation=eef_pose[:3],
+            quaternion=eef_pose[3:]
+        )
+        q_current, _ = self.get_current_joint_state()
+        q_goal = self.ik_solver.ik(eef_pose_T.matrix, q_current)
+        return q_goal
+
     def move_to_eef_pose(self,
+                         viewer: None,
                          eef_pose: List[float],
                          qpos_thresh: float = 0.01,
-                         executing=False):
+                         executing=False,
+                         ):
         """
         Move the ee to the desired pose
         Using the ik solver to compute the joint angles
@@ -54,21 +64,25 @@ class UR5eMjArm(RobotBase):
         q_goal = self.ik_solver.ik(eef_pose_T.matrix, q_current)
         self._goal_joint_pos = q_goal
 
+        # print(eef_pose[:3])
         # print("Q current: ", q_current)
         # print("Goal joint pos: ", q_goal)
 
         if executing:
-            qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+            # qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+            qpos_err = np.abs(self._mj_data.qpos[:6] - q_goal)
             i = 0
-            while qpos_err > qpos_thresh:
+            while (qpos_err > qpos_thresh).any():
                 self.spin()
                 mujoco.mj_step(self._mj_model, self._mj_data)
-                qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+                # qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+                qpos_err = np.abs(self._mj_data.qpos[:6] - q_goal)
                 i += 1
+                                
+                if viewer: viewer.sync()
             print(f"[MOVE TO EEF POSE] Reached the goal in {i} steps with ERROR: {qpos_err}")
             return q_goal
         return
-    
     
     def spin(self):
         """
@@ -81,8 +95,10 @@ class UR5eMjArm(RobotBase):
             q_vel_curr)
         # forwards the joint command to the mujoco ctrl
         # print("Joint command: ", q_cmd)
-        self._mj_data.ctrl[0: 6] = q_cmd + q_pos_curr
-        # self._mj_data.qpos[0:6] =  q_cmd + q_pos_curr
+        
+        self._mj_data.ctrl[0:6] = q_cmd + q_pos_curr
+        # self._mj_data.qpos[0:6] =  q_cmd/4 + q_pos_curr
+
         # print(q_cmd)
         return
 
@@ -153,6 +169,8 @@ class UR5eMjArm(RobotBase):
         
         return T.from_matrix(tcp_in_base_T)
 
+    def get_peg_pos_quat(self):
+        return np.array(self._mj_data.xpos[9, :]) ,  np.array(self._mj_data.xquat[9, :])
 
     def get_fts_data(self,
                      transform_to_base: bool = False):
