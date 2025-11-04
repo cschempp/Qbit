@@ -178,9 +178,9 @@ class MjEnvInsertion(MujocoEnvBase):
                     threshold: float = 0.0001
                     ) -> bool:
 
-        if current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + threshold:
-            return True
-        if self.i >= 250:
+        # if current_eef_pose_T.translation[2] < self.insertion_goal_T.translation[2] + threshold:
+        #     return True
+        if self.i >= 25:
             return True
         return False
 

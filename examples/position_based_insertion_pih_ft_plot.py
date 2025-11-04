@@ -1,8 +1,10 @@
 import mujoco_viewer
 import mujoco
 import numpy as np
+import copy
 
 from qbit.utils.tf_utils import T
+from qbit.utils.data_recording_utils import DataRecording
 from examples.position_based_insertion_pih import PositionBasedInsertion
 
 
@@ -25,7 +27,9 @@ ROT_RANDOM_LIMIT = 1.5 # degree
 class PositionBasedInsertionFTPlot(PositionBasedInsertion):
     def __init__(self, task_env_config_path, sim_timestep = 0.001, rendering_timestep = 0.033, rt_factor = 0, headless = True, server_modus = False):
         super().__init__(task_env_config_path, sim_timestep, rendering_timestep, rt_factor, headless, server_modus)
-    
+        
+        self.data_eva = DataRecording(task_env_config_path=task_env_config_path)
+
     def exec_insertion(self):
         """
         Main function to execute the insertion task
@@ -72,6 +76,7 @@ class PositionBasedInsertionFTPlot(PositionBasedInsertion):
         print("++++++++++++++++++++++++++++++++++++++")
 
         for _ in range(50):
+            self.data_eva.init()
             translation_offset = np.random.rand(3) * 0.004 - 0.002
             # translation_offset = np.random.rand(3) * 0.02 - 0.01
             # start_pose_T.translation += translation_offset
@@ -97,12 +102,21 @@ class PositionBasedInsertionFTPlot(PositionBasedInsertion):
         self.i = 0
 
         while 1:
-            
+
             # get states
             current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
             current_joint_state = self.robot.get_current_joint_state()
             measured_wrench = self.robot.get_fts_data(transform_to_base=True)
 
+            # Recoad data
+            self.data_eva.record(
+                timestamp = self.i * SIM_TIMESTEP,
+                eef_fts=copy.deepcopy(measured_wrench),
+                eef_pos=current_eef_pose_T.translation,
+                eef_qua=current_eef_pose_T.quaternion,
+                joint_states=current_joint_state
+            )
+            
             viewer.add_data_to_line(line_name="force_x", line_data=measured_wrench[0], fig_idx=0)
             viewer.add_data_to_line(line_name="force_y", line_data=measured_wrench[1], fig_idx=0)
             viewer.add_data_to_line(line_name="force_z", line_data=measured_wrench[2], fig_idx=0)
@@ -113,7 +127,8 @@ class PositionBasedInsertionFTPlot(PositionBasedInsertion):
 
             # Check the termination condition
             if self.termination(current_eef_pose_T):
-                # self.data_eva.save()
+                self.data_eva.save()
+                self.data_eva.plot_data()
                 return
             
             # EEF Position control

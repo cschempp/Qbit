@@ -96,8 +96,8 @@ class UR5eMjArm(RobotBase):
         # forwards the joint command to the mujoco ctrl
         # print("Joint command: ", q_cmd)
         
-        self._mj_data.ctrl[0:6] = q_cmd + q_pos_curr
-        # self._mj_data.qpos[0:6] =  q_cmd/4 + q_pos_curr
+        # self._mj_data.ctrl[0:6] = q_cmd + q_pos_curr
+        self._mj_data.qpos[0:6] =  q_cmd/4 + q_pos_curr
 
         # print(q_cmd)
         return

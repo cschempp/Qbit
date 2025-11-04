@@ -18,9 +18,12 @@ env_objects:
       quaternion: [ 0.5, 0.5, 0.5, 0.5 ]
     scale: [1, 1, 1]
 
+data_recording:
+  save_folder: "exp_pipe_cylinder_ring"
 
 task_objects:
   - obj_name: hole_female
+    obj_type: hole
     mesh_type: coacd # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/peg_in_hole_simple/assets/simple_example_hole.obj
     attach_body: 'world'
@@ -29,13 +32,14 @@ task_objects:
       quaternion: [0.7071068, 0.7071068, 0, 0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: normal
+    material: steel
     mesh_color: [0.0, 1, 0.0, 0.8]
     contact:
       condim: 3
-      friction: 0.5
+      friction: 0.3
 
   - obj_name: peg
+    obj_type: peg
     mesh_type: sphere # mesh / sphere / coacd
     mesh_path: qbit/assets/task_env/colored_objects/cylinder_with_ring_0.04/cylinder_with_ring_0.04.obj
     #/workspace/qbit/assets/task_env/peg_in_hole_simple/assets/simple_example_peg.obj
@@ -43,10 +47,10 @@ task_objects:
     attach_pose:
       position: [0, 0, 0.11]
       quaternion: [1.0, 0.0, 0.0, 0.0] #[ 0.5, 0.5, 0.5, 0.5 ] # wxyz
-    scale: [0.85, 0.85, 0.85] #[0.00095, 0.00095, 0.00095]
+    scale: [0.89, 0.89, 0.89] #[0.00095, 0.00095, 0.00095]
     mesh_color: [1, 0, 0, 1]
-    material: normal
+    material: steel
     mass: 0.001 # set the mass to 0.0001 to avoid the additional compensation (calibration)
     contact:
       condim: 3
-      friction: 0.5
+      friction: 0.3

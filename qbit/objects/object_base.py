@@ -39,32 +39,32 @@ class BaseObject:
         # o_solref="0.02 1"
         self.material_list = {
             "steel": {
-                "solref": [0.0012, 0.5], #-0.1
-                "density": 7850,
+                "solref": [0.1, 0.5], #-0.1
+                "density": 1,
                 "young": 200e9,
                 "poisson": 0.28,
             },
             "plastic": {
-                "solref": [0.0018, 0.5], #-0.01
-                "density": 7850,#1190,
+                "solref": [0.018, 0.5], #-0.01
+                "density": 1,#1190,
                 "young": 2.5e9,
                 "poisson": 0.4,
             },
             "wood": {
-                "solref": [0.0022, 0.5], #-0.01
-                "density": 7850,#700,
+                "solref": [0.022, 0.5], #-0.01
+                "density": 1,#700,
                 "young": 15e9,
                 "poisson": 0.43,
             },
             "rubber": {
-                "solref": [0.0028, 0.5],
-                "density": 7850,#920,
+                "solref": [0.22, 0.5],
+                "density": 1,#920,
                 "young": 0.05e9,
                 "poisson": 0.49,
             },
             "normal": {
                 "solref": [0.02, 1.0],
-                "density": 1000,
+                "density": 1,
                 "young": 5e5,
                 "poisson": 0.25,
             },
@@ -99,7 +99,7 @@ class BaseObject:
         mesh.apply_transform(transform)
 
         insertion_depth = mesh.extents[2]
-        start_position_hole = np.array(config.get('attach_pose')['position']) + np.array([0, 0, insertion_depth/2 + 0.0000])
+        start_position_hole = np.array(config.get('attach_pose')['position']) + np.array([0, 0, insertion_depth/2 + 0.0])
         
         return start_position_hole, insertion_depth
     
@@ -341,7 +341,7 @@ class SpheredObject(BaseObject):
 
         for point, radius, color in zip(self.FINAL_POINTS, self.FINAL_RADII, self.FINAL_COLORS):
             
-            if color[2] > 200: material = "rubber"
+            if color[2] == 1: material = "rubber"
             else: material = "steel"
 
             geom = self.obj_body.add_geom(
@@ -350,7 +350,7 @@ class SpheredObject(BaseObject):
                 rgba = color.tolist() + [1.0],
                 size = [radius]*3,
                 pos = list(point),
-                density = self.material_list[material]['density'],
+                density = 1, #self.material_list[material]['density'],
                 solref = self.material_list[material]['solref'],
                 friction = [self.friction, 0.005, 0.0001], # sliding friction between the two task objects
             )
