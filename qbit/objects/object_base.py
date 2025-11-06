@@ -111,13 +111,37 @@ class BaseObject:
                 quat = config.get('attach_pose')['quaternion'],
                 )
         else:
+            # if we want to have free moving object, we need to attach to world in order to add a freejoint.
+            # If the body should have a free joint, but its parent body is not world, we attach to world
+            # given the relative pose of parent body and the pose of the parent body in world.
             parent_body_name = config.get('attach_body')
-            self.obj_body = self._mj_spec.find_body(parent_body_name).add_body(
-                name = f"{config.get('obj_name')}_body",
-                pos = config.get('attach_pose')['position'],
-                quat = config.get('attach_pose')['quaternion'],
-                )
+            if config.get('joint') == 'free': 
+                pos = self._mj_spec.find_body(parent_body_name).pos
+                quat = self._mj_spec.find_body(parent_body_name).quat
+                quat = np.array([quat[1], quat[2], quat[3], quat[0]])
 
+                quat_ = config.get('attach_pose')['quaternion']
+                quat_ = np.array([quat_[1], quat_[2], quat_[3], quat_[0]])
+
+                parent_pose = T(translation=pos, quaternion=quat)._matrix
+                attach_pose = T(translation=config.get('attach_pose')['position'], quaternion=quat_)._matrix
+                attach_pose_in_world = T.from_matrix(parent_pose @ attach_pose)
+                posquat_world = attach_pose_in_world.get_pos_quat_list(quat_format="wxyz")
+
+                self.obj_body = self._mj_spec.worldbody.add_body(
+                    name = f"{config['obj_name']}_body",
+                    pos = posquat_world[:3],
+                    quat = posquat_world[3:],
+                )
+                self.obj_body.add_freejoint()
+            else:
+                self.obj_body = self._mj_spec.find_body(parent_body_name).add_body(
+                    name = f"{config.get('obj_name')}_body",
+                    pos = config.get('attach_pose')['position'],
+                    quat = config.get('attach_pose')['quaternion'],
+                    )
+            
+            
 
 class DecomposedObject(BaseObject):
     
@@ -356,6 +380,7 @@ class SpheredObject(BaseObject):
             )
 
         print("loaded sphered object")
+
 
 if __name__ == "__main__":
     mesh_stl_path = "/workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl"

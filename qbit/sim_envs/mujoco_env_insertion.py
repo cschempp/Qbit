@@ -17,7 +17,7 @@ import mujoco.viewer
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
 
-from qbit.objects.object_base import DecomposedObject, MeshObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject
 
 from qbit.utils.tf_utils import T
 from qbit.objects.env_objects import MjEnvObjects
@@ -75,7 +75,6 @@ class MjEnvInsertion(MujocoEnvBase):
         if server_modus:
             self._interface = QbitMjGrpcProxy()
             self._interface.start()
-            
         else:
             self.setup_client()
 
@@ -173,6 +172,94 @@ class MjEnvInsertion(MujocoEnvBase):
         return start_pose, goal_pose
 
 
+    def load_task_objects(self, task_objects: list):
+        """
+        Load the task objects
+        """
+
+        friction_list = {
+            "steel": {
+                "steel": 0.4,
+                "plastic": 0.2,
+                "wood": 0.5,
+                "rubber": 0.2,
+                "feather": 0.2,
+            },
+            "plastic": {
+                "steel": 0.2,
+                "plastic": 0.25,
+                "wood": 0.3,
+                "rubber": 0.6,
+                "feather": 0.2,
+            },
+            "wood": {
+                "steel": 0.5,
+                "plastic": 0.3,
+                "wood": 0.5,
+                "rubber": 0.9,
+            },
+            "rubber": {
+                "steel": 0.2,
+                "plastic": 0.6,
+                "wood": 0.9,
+                "rubber": 1.8,
+                "feather": 0.2,
+            },
+            "feather": {
+                "steel": 0.2,
+                "plastic": 0.2,
+                "wood": 0.2,
+                "rubber": 0.2,
+                "feather": 0.2,
+            },
+            "normal": {
+                "normal": 0.4,
+            },
+        }
+
+        self.materials = [task_obj.get('material') for task_obj in task_objects]
+        self.friction = friction_list[self.materials[0]][self.materials[1]]
+        self.task_objects = task_objects
+
+        for task_obj in task_objects:
+            if "female" in task_obj["obj_name"]:
+                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
+                    _object_hole = DecomposedObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['mesh']:
+                    _object_hole = MeshObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['flexcomp']:
+                    _object_hole = FlexcompObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sphere']:
+                    _object_hole = SpheredObject(self._mj_spec, task_obj, self.friction)
+            else:
+                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
+                    _object_peg = DecomposedObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['mesh']:
+                    _object_peg = MeshObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['flexcomp']:
+                    _object_peg = FlexcompObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sphere']:
+                    _object_peg = SpheredObject(self._mj_spec, task_obj, self.friction)
+
+        return _object_hole, _object_peg
+    
+    def load_env(self, task_env_config_path):
+        
+        self._config = self.parse_qbit_config_yaml(task_env_config_path)
+        
+        # load the robot
+        self._mj_spec = self.load_robot(
+            self._config.get('robot'),
+        )
+        
+        # load environment objects
+        self.load_env_objects(self._config.get('env_objects'))
+
+        # load task objects
+        _object_hole, _object_peg = self.load_task_objects(self._config.get('task_objects'))
+
+        return _object_hole, _object_peg
+
     def termination(self, 
                     current_eef_pose_T: T,
                     threshold: float = 0.0001
@@ -231,7 +318,7 @@ class MjEnvInsertion(MujocoEnvBase):
 
 if __name__ == "__main__":
     
-    task_env_config_path = "qbit/configs/envs/ur5e_peg_task.yaml"
+    task_env_config_path = "qbit/configs/envs/ur5e_pih_task.yaml"
     
     mj = MjEnvInsertion(
         task_env_config_path=task_env_config_path,

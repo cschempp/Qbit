@@ -11,6 +11,10 @@ from typing import List
 import mujoco
 import mujoco.viewer
 
+import grpc
+from qbit.interfaces.grpc import qbit_pb2
+from qbit.interfaces.grpc import qbit_pb2_grpc
+
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
 from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject
@@ -59,8 +63,45 @@ class MujocoEnvBase:
         if server_modus:
             self._interface = QbitMjGrpcProxy()
             self._interface.start()
-
+        else:
+            self.setup_client()
     
+    def setup_client(self):
+        
+        # create the grpc client
+        if self.check_is_server_aviailable('localhost:50052'):
+            print("Creating client")
+            self.channel = grpc.insecure_channel('localhost:50052')
+            self.stub = qbit_pb2_grpc.QbitInterfaceStub(self.channel)
+            response = self.stub.CheckServerConnection(qbit_pb2.Ping(ping=True))
+        else:
+            print("ERROR: Server not available")
+            exit(0)
+
+
+    def check_is_server_aviailable(self, target, timeout=2):
+        """
+        Check wether the insertion task service server is available
+        """        
+        channel = grpc.insecure_channel(target)
+        try:
+            # Wait until the channel is ready or timeout occurs.
+            grpc.channel_ready_future(channel).result(timeout=timeout)
+            return True
+        except grpc.FutureTimeoutError:
+            return False
+
+
+    def __exit__(self):
+        """
+        Close the channel
+        Make sure the grpc connection is closed properly and don't occupy the port
+        """
+        if not self._server_modus:
+            if self.channel:
+                self.stub.close()
+
+
     def reset_sim(self):
         """
         Reset the simulation
@@ -81,10 +122,8 @@ class MujocoEnvBase:
         self.load_env_objects(self._config.get('env_objects'))
 
         # load task objects
-        _object_hole, _object_peg = self.load_task_objects(self._config.get('task_objects'))
+        self.load_task_objects(self._config.get('task_objects'))
 
-        return _object_hole, _object_peg
-        
         
 
     def load_robot(self,
@@ -164,32 +203,22 @@ class MujocoEnvBase:
             },
         }
 
-        self.materials = [task_obj.get('material') for task_obj in task_objects]
-        self.friction = friction_list[self.materials[0]][self.materials[1]]
+        #self.materials = [task_obj.get('material') for task_obj in task_objects]
+        #self.friction = friction_list[self.materials[0]][self.materials[1]]
         self.task_objects = task_objects
 
         for task_obj in task_objects:
-            if "female" in task_obj["obj_name"]:
-                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                    _object_hole = DecomposedObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['mesh']:
-                    _object_hole = MeshObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['flexcomp']:
-                    _object_hole = FlexcompObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['sphere']:
-                    _object_hole = SpheredObject(self._mj_spec, task_obj, self.friction)
-            else:
-                if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                    _object_peg = DecomposedObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['mesh']:
-                    _object_peg = MeshObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['flexcomp']:
-                    _object_peg = FlexcompObject(self._mj_spec, task_obj, self.friction)
-                elif task_obj.get('mesh_type') in ['sphere']:
-                    _object_peg = SpheredObject(self._mj_spec, task_obj, self.friction)
+            self.friction = task_obj.get('contact').get('friction', 0.4)
+            if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
+                DecomposedObject(self._mj_spec, task_obj, self.friction)
+            elif task_obj.get('mesh_type') in ['mesh']:
+                MeshObject(self._mj_spec, task_obj, self.friction)
+            elif task_obj.get('mesh_type') in ['flexcomp']:
+                FlexcompObject(self._mj_spec, task_obj, self.friction)
+            elif task_obj.get('mesh_type') in ['sphere']:
+                SpheredObject(self._mj_spec, task_obj, self.friction)
+         
 
-        return _object_hole, _object_peg
-    
     def compile_model(self):
         """
         Compile the model and share the mj_model with 
@@ -274,6 +303,7 @@ class MujocoEnvBase:
         viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_BODY
 
+
     def update_view_scale(self):
         self._mj_model.vis.scale.contactwidth = 0.01
         self._mj_model.vis.scale.contactheight = 0.01
@@ -298,6 +328,7 @@ class MujocoEnvBase:
             self._sim_time += self._sim_timestep
             if viewer:
                 viewer.sync()
+            
             
     def spin_with_viewer(self):
         """
