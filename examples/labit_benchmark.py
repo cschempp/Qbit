@@ -128,7 +128,7 @@ class PositionBasedInsertion(MujocoEnvBase):
         """
         Main function to execute the LABIT benchmark task.
         """
-        
+
         with mujoco.viewer.launch_passive(self._mj_model, self._mj_data, show_left_ui=False, show_right_ui=False) as viewer:
             
             self.update_view_scale()
@@ -136,12 +136,22 @@ class PositionBasedInsertion(MujocoEnvBase):
             # self.update_view_opt(viewer)
             viewer.sync()
 
-            goal_pose_T = T(translation=np.array([0.2, -0.2, 0.1]),
-                              quaternion=np.array([0.707, 0.707, 0.0, 0.0]))
+            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
+            # goal_pose_T = T(translation=np.array([0.7, 0.0, 0.4]),
+            #                   quaternion=np.array([0.707, 0.707, 0.0, 0.0]))
+            goal_pose_T = current_eef_pose_T
+            goal_pose_T.translation += np.array([0.0, 0.0, 0.12])
 
-            self.move_pose(goal_pose_T, viewer)
+            # self.move_pose(goal_pose_T, viewer)
             
-            time.sleep(240.0)
+            # while 1:
+            #     self.robot.spin()
+            #     self.step_mj_simulation()
+
+            #     if viewer != None:    
+            #         viewer.sync()
+
+            time.sleep(240)
 
             return
 

@@ -1,10 +1,10 @@
 <mujoco model="ur5e">
   <compiler angle="radian" eulerseq="XYZ" meshdir="/workspace/qbit/assets/robots/ur5e/assets" autolimits="true"/>
   <size memory="1G" />
-  <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.001" tolerance="1e-6" 
-          gravity="0.0 0.0 0.0"
-          o_solref="0.02 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="0.3 0.005 0.0001">
-    <!-- <flag override="enable" /> -->
+  <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.0001" tolerance="1e-6" 
+          gravity="0.0 0.0 -9.81"
+          o_solref="0.05 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="1.0 0.005 0.0001">
+    <flag override="enable" />
   </option>
   <!-- <option integrator="implicitfast" cone="elliptic" solver="Newton" timestep="0.001" gravity="0.0 0.0 0.0"/> -->
   <!-- <option integrator="RK4" cone="elliptic" solver="Newton" timestep="0.001" /> -->

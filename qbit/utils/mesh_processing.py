@@ -54,20 +54,34 @@ class MeshObjects:
         scene.show(flags={'wireframe':True})
 
     def decomposition_with_vhacd(self):
+        """
+        maxConvexHulls                    64
+        resolution                        400000
+        minimumVolumePercentErrorAllowed  1.0
+        maxRecursionDepth                 10
+        shrinkWrap                        True
+        fillMode                          "flood"
+        maxNumVerticesPerCH               64
+        asyncACD                          True
+        minEdgeLength                     2
+        findBestPlane                     False
+        """
+
         self._decomposed_mesh_dir += "_vhacd"
 
-        mesh = trimesh.load(self._obj_path)
-        decomposed_meshes = trimesh.decomposition.convex_decomposition(mesh)
-        
-        scene = trimesh.Scene()
-        for i, p in enumerate(decomposed_meshes):
-            m = trimesh.Trimesh(p['vertices'], p['faces'])
-            m.visual.face_colors = (np.random.rand(3) * 255).astype(np.uint8)
-            m.visual.vertex_colors = (np.random.rand(3) * 255).astype(np.uint8)
-            m.export(f"/workspace/qbit/assets/task_env/plugs/vhacd_usb_a_female/part_{i}.obj")
-            scene.add_geometry(m)
-        # scene.show(flags={'wireframe':True})
-        # print("Decomposed meshes: ", decomposed_meshes)
+        if not os.path.exists(self._decomposed_mesh_dir):
+            os.makedirs(self._decomposed_mesh_dir)
+
+            mesh = trimesh.load(self._obj_path)
+
+            decomposed_meshes = trimesh.decomposition.convex_decomposition(mesh, resolution=10000000, maxConvexHulls=100, minimumVolumePercentErrorAllowed=0.1)
+            
+            for i, p in enumerate(decomposed_meshes):
+                m = trimesh.Trimesh(p['vertices'], p['faces'])
+                m.visual.face_colors = (np.random.rand(3) * 255).astype(np.uint8)
+                m.visual.vertex_colors = (np.random.rand(3) * 255).astype(np.uint8)
+                m.export(f"{self._decomposed_mesh_dir}/part_{i}.obj")
+            print(f"[MESH PROCESSING] Decomposed meshes ({i} parts) are saved in {self._decomposed_mesh_dir}")
 
     def decomposition_with_coacd(self, threshold=0.02):
         
@@ -78,7 +92,7 @@ class MeshObjects:
             
             mesh = trimesh.load(self._obj_path)
             mesh = coacd.Mesh(mesh.vertices, mesh.faces)
-            parts = coacd.run_coacd(mesh, threshold=threshold)
+            parts = coacd.run_coacd(mesh, threshold=threshold, preprocess_resolution=60, resolution=4000, mcts_max_depth=5, mcts_iterations=1000, max_convex_hull=128)
             
             for i, p in enumerate(parts):
                 mesh = trimesh.Trimesh(p[0], p[1])
@@ -115,6 +129,7 @@ class MeshObjects:
             return True      
 
         print(f"[MESH PROCESSING] {self.output_msh_path} already exists. Skipping converting from stl to msh. \n")
+
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 examples/experiment_results/
 qbit/assets/task_env/primitives
+qbit/assets/task_env/peg_in_hole_simple
+qbit/assets/task_env/colored_objects
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

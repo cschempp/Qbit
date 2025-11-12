@@ -14,6 +14,7 @@ import numpy as np
 
 import trimesh
 from scipy.spatial.transform import Rotation as R
+from scipy.spatial import cKDTree
 
 import mujoco
 import mujoco.viewer
@@ -40,7 +41,7 @@ class BaseObject:
         self.material_list = {
             "steel": {
                 "solref": [0.1, 0.5], #-0.1
-                "density": 1,
+                "density": 100,
                 "young": 200e9,
                 "poisson": 0.28,
             },
@@ -81,11 +82,12 @@ class BaseObject:
         mesh = trimesh.load_mesh(meshfile)
         # mesh = mesh.subdivide_loop(iterations=0)
         # mesh.export(self._config.get('mesh_path')[:-4]+"_processed.stl")
-
+        self.mesh_extents = mesh.extents
+        self.mesh_center = mesh.centroid
         mesh.vertices *= np.array(config.get('scale'))
 
         self._obj_volume = mesh.volume
-        self._obj_mass = 0.1 #self._obj_volume * self.material_list[config["material"]]["density"]
+        self._obj_mass = 1.0 # self._obj_volume * self.material_list[config["material"]]["density"]
 
         quat = config["attach_pose"]["quaternion"]
         quat = [quat[1], quat[2], quat[3], quat[0]]
@@ -119,11 +121,17 @@ class BaseObject:
                 pos = self._mj_spec.find_body(parent_body_name).pos
                 quat = self._mj_spec.find_body(parent_body_name).quat
                 quat = np.array([quat[1], quat[2], quat[3], quat[0]])
+                
+                # id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, parent_body_name)
+                # pos = self._mj_data.xpos[id, :]
+                # quat = self._mj_data.xquat[id, :]
+                # quat = np.array([quat[1], quat[2], quat[3], quat[0]])
 
                 quat_ = config.get('attach_pose')['quaternion']
                 quat_ = np.array([quat_[1], quat_[2], quat_[3], quat_[0]])
 
                 parent_pose = T(translation=pos, quaternion=quat)._matrix
+                
                 attach_pose = T(translation=config.get('attach_pose')['position'], quaternion=quat_)._matrix
                 attach_pose_in_world = T.from_matrix(parent_pose @ attach_pose)
                 posquat_world = attach_pose_in_world.get_pos_quat_list(quat_format="wxyz")
@@ -152,7 +160,10 @@ class DecomposedObject(BaseObject):
         super(DecomposedObject, self).__init__(mj_spec, config_dict, friction)
 
         _mp = MeshObjects(obj_path=self._config.get('mesh_path'))
-        _mp.decomposition_with_coacd(threshold=0.01)
+        if self._config.get('mesh_type') == 'vhacd':
+            _mp.decomposition_with_vhacd()
+        elif self._config.get('mesh_type') == 'coacd':
+            _mp.decomposition_with_coacd(threshold=0.01)
         self._decomposed_mesh_dir = _mp._decomposed_mesh_dir
 
         self.load_decomposed_object(config=self._config)
@@ -351,30 +362,102 @@ class SpheredObject(BaseObject):
                  friction):
         super(SpheredObject, self).__init__(mj_spec, config_dict, friction)
 
-        self._sphered_object_dir = os.path.join(*self._config.get('mesh_path').split(os.sep)[:-1], "sphered_decomposition", "cylinder_with_ring_0.04.npy")
+        self._sphered_object_dir = os.path.join(*self._config.get('mesh_path').split(os.sep)[2:-1],
+                                               self._config.get('obj_name') + "_sphered.npy")
+
+        if not os.path.exists(self._sphered_object_dir):
+            self.sphere_packing_sdf(mesh=trimesh.load(self._config.get('mesh_path')),
+                                    radius=0.001)
 
         self.load_sphered_object(config=self._config)
 
+
+    def sphere_packing_sdf(self, mesh, radius, bboxes=[]):
+        mesh.vertices *= np.array(self._config.get('scale'))
+        bounds = mesh.bounds
+        radius_fine = radius / 4
+        
+        print("[sphere_packing_sdf] Generating sample points...")
+        # coarse sampling
+        x = np.arange(bounds[0][0], bounds[1][0], radius*2)
+        y = np.arange(bounds[0][1], bounds[1][1], radius*2)
+        z = np.arange(bounds[0][2], bounds[1][2], radius*2)
+
+        # bbox_center = np.array([0.110, 0.008, 0.025])
+        # bbox_min = bbox_center - np.array([0.005, 0.005, 0.015])
+        # bbox_max = bbox_center + np.array([0.005, 0.005, 0.01])
+
+        X,Y,Z = np.meshgrid(x,y,z)
+        sample_points = np.vstack([X.ravel(), Y.ravel(), Z.ravel()]).T
+
+        print("[sphere_packing_sdf] Computing signed distances...")
+        signed_distance = trimesh.proximity.signed_distance(mesh, sample_points)
+        inside_points_coarse = sample_points[(signed_distance >= radius) & (signed_distance < 3*radius)]
+
+        print("[sphere_packing_sdf] Removing coarse points inside bboxes")
+        # remove points in coarse voxelization that are inside the hole boxes
+        for bbox in bboxes:
+            bbox_min = bbox[0]
+            bbox_max = bbox[1]
+            mask = ~np.all((inside_points_coarse >= bbox_min) & (inside_points_coarse <= bbox_max), axis=1)
+            inside_points_coarse = inside_points_coarse[mask]
+
+        N = len(inside_points_coarse)
+        radii_coarse = np.ones((N))*radius
+
+        print("[sphere_packing_sdf] Generating fine sample points in bboxes...")
+        for i,bbox in enumerate(bboxes):
+            # fine sampling
+            x = np.arange(bbox_min[0], bbox_max[0], radius_fine*2)
+            y = np.arange(bbox_min[1], bbox_max[1], radius_fine*2)
+            z = np.arange(bbox_min[2], bbox_max[2], radius_fine*2)
+
+            X,Y,Z = np.meshgrid(x,y,z)
+            sample_points = np.vstack([X.ravel(), Y.ravel(), Z.ravel()]).T
+
+            signed_distance = trimesh.proximity.signed_distance(mesh, sample_points)
+            inside_points_fine = sample_points[(signed_distance >= radius_fine) & (signed_distance < 3*radius_fine)]
+
+            N = len(inside_points_fine)
+            radii_fine = np.ones((N))*radius_fine
+
+            inside_points_coarse = np.vstack((inside_points_coarse, inside_points_fine))
+            radii_coarse = np.hstack((radii_coarse, radii_fine))   
+            print("[sphere_packing_sdf] Added " + str(N) + " fine points from bbox " + str(i))
+        
+        np.save(self._sphered_object_dir, {"radii": radii_coarse, "positions": inside_points_coarse})
+
+
     def load_sphered_object(self, config):
-        decomposed_mesh = np.load( self._sphered_object_dir, allow_pickle=True)
+        file = self._sphered_object_dir
         scale = np.array(config.get('scale'))
 
-        self.FINAL_POINTS = decomposed_mesh.item()["points"] * scale
-        self.FINAL_RADII = decomposed_mesh.item()["radii"] * scale[0]
-        self.FINAL_COLORS = decomposed_mesh.item()["colors"]
-
-        for point, radius, color in zip(self.FINAL_POINTS, self.FINAL_RADII, self.FINAL_COLORS):
+        if file.endswith(".npy"):
+            decomposed_mesh = np.load(file, allow_pickle=True)
+            self.FINAL_POINTS = decomposed_mesh.item()["positions"]
+            self.FINAL_RADII = decomposed_mesh.item()["radii"]
+            # FINAL_COLORS = decomposed_mesh.item()["colors"]
+        elif file.endswith(".csv"):
+            # data is of shape (n,4): [x, y, z, radius], n being number of spheres
+            # skip header in .csv with skiprows=1
+            data = np.loadtxt(file, delimiter=',', skiprows=1)
+            scale_xproto = np.max(self.mesh_extents/(np.max(data[:, :3])-np.min(data[:, :3])))
+            self.FINAL_POINTS = data[:, :3][::5] * scale_xproto * scale + self.mesh_center * scale
+            self.FINAL_RADII = data[:, 3][::5] * scale_xproto * scale[0]
+        
+        for point, radius in zip(self.FINAL_POINTS, self.FINAL_RADII):
             
-            if color[2] == 1: material = "rubber"
-            else: material = "steel"
+            material = self._config.get('material', 'normal')
+            color = self._config.get('mesh_color')
 
             geom = self.obj_body.add_geom(
                 type = mujoco.mjtGeom.mjGEOM_SPHERE,
                 condim = config.get('contact').get('condim', 3),
-                rgba = color.tolist() + [1.0],
+                rgba = color,
                 size = [radius]*3,
                 pos = list(point),
-                density = 1, #self.material_list[material]['density'],
+                # density = 1, #self.material_list[material]['density'],
+                mass = self._obj_mass, #/ len(self.FINAL_POINTS),
                 solref = self.material_list[material]['solref'],
                 friction = [self.friction, 0.005, 0.0001], # sliding friction between the two task objects
             )
