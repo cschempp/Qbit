@@ -9,67 +9,27 @@ from typing import Tuple, Literal
 from loguru import logger
 import xml.etree.ElementTree as ET
 
-import mujoco._specs
 import numpy as np
 
 import trimesh
 from scipy.spatial.transform import Rotation as R
-from scipy.spatial import cKDTree
 
 import mujoco
-import mujoco.viewer
 
 from qbit.utils.tf_utils import T
 from qbit.utils.mujoco_utils import convert_quat_to_xyzw
 from qbit.utils.mesh_processing import MeshObjects
-
-
+from qbit.utils.mujoco_material_definitions import MATERIALS
 
 
 
 class BaseObject:
     def __init__(self, 
                  mj_spec, 
-                 config_dict: dict,
-                 friction: float):
+                 config_dict: dict):
         
         self._mj_spec = mj_spec
         self._config = config_dict
-        self.friction = friction
-
-        # o_solref="0.02 1"
-        self.material_list = {
-            "steel": {
-                "solref": [0.1, 0.5], #-0.1
-                "density": 100,
-                "young": 200e9,
-                "poisson": 0.28,
-            },
-            "plastic": {
-                "solref": [0.018, 0.5], #-0.01
-                "density": 1,#1190,
-                "young": 2.5e9,
-                "poisson": 0.4,
-            },
-            "wood": {
-                "solref": [0.022, 0.5], #-0.01
-                "density": 1,#700,
-                "young": 15e9,
-                "poisson": 0.43,
-            },
-            "rubber": {
-                "solref": [0.22, 0.5],
-                "density": 1,#920,
-                "young": 0.05e9,
-                "poisson": 0.49,
-            },
-            "normal": {
-                "solref": [0.02, 1.0],
-                "density": 1,
-                "young": 5e5,
-                "poisson": 0.25,
-            },
-        }
 
         self.start_position_hole, self.insertion_depth = self.get_hole_pose_depth(self._config)
         self.attach_body(config=self._config)
@@ -87,7 +47,7 @@ class BaseObject:
         mesh.vertices *= np.array(config.get('scale'))
 
         self._obj_volume = mesh.volume
-        self._obj_mass = 1.0 # self._obj_volume * self.material_list[config["material"]]["density"]
+        self._obj_mass = self._obj_volume * MATERIALS[config["material"]].density
 
         quat = config["attach_pose"]["quaternion"]
         quat = [quat[1], quat[2], quat[3], quat[0]]
@@ -121,11 +81,6 @@ class BaseObject:
                 pos = self._mj_spec.find_body(parent_body_name).pos
                 quat = self._mj_spec.find_body(parent_body_name).quat
                 quat = np.array([quat[1], quat[2], quat[3], quat[0]])
-                
-                # id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, parent_body_name)
-                # pos = self._mj_data.xpos[id, :]
-                # quat = self._mj_data.xquat[id, :]
-                # quat = np.array([quat[1], quat[2], quat[3], quat[0]])
 
                 quat_ = config.get('attach_pose')['quaternion']
                 quat_ = np.array([quat_[1], quat_[2], quat_[3], quat_[0]])
@@ -155,9 +110,8 @@ class DecomposedObject(BaseObject):
     
     def __init__(self,
                  mj_spec,
-                 config_dict: dict,
-                 friction: float):
-        super(DecomposedObject, self).__init__(mj_spec, config_dict, friction)
+                 config_dict: dict,):
+        super(DecomposedObject, self).__init__(mj_spec, config_dict)
 
         _mp = MeshObjects(obj_path=self._config.get('mesh_path'))
         if self._config.get('mesh_type') == 'vhacd':
@@ -181,9 +135,9 @@ class DecomposedObject(BaseObject):
                 meshname = f"{config.get('obj_name')}_mesh_{i}",
                 condim = config.get('contact').get('condim', 3),
                 rgba = mesh_color[0],
-                density = self.material_list[config.get('material')]['density'],
-                solref = self.material_list[config.get('material')]['solref'],
-                friction = [self.friction, 0.005, 0.0001], # sliding friction between the two task objects
+                density = MATERIALS[config.get('material')].density,
+                solref = MATERIALS[config.get('material')].solref,
+                friction = MATERIALS[config.get('material')].friction,
             )
             mesh = self._mj_spec.add_mesh()
             mesh.name = f"{config.get('obj_name')}_mesh_{i}"
@@ -197,29 +151,59 @@ class MeshObject(BaseObject):
     
     def __init__(self,
                  mj_spec,
-                 config_dict: dict,
-                 friction: float):
-        super(MeshObject, self).__init__(mj_spec, config_dict, friction)
+                 config_dict: dict):
+        super(MeshObject, self).__init__(mj_spec, config_dict)
         self.load_mesh_object(self._config)
         
     def load_mesh_object(self, config):
 
         # load the mesh files
-        self.obj_body.add_geom(
+        geom = self.obj_body.add_geom(
             type = mujoco.mjtGeom.mjGEOM_MESH,
             meshname = f"{config.get('obj_name')}_mesh",
             condim = config.get('contact').get('condim', 3),
             rgba = config.get('mesh_color', [1, 0, 0, 1]),
             mass = self._obj_mass, #config.get('mass'),
-            # density = self.material_list[config.get('material')]['density'],
-            solref = self.material_list[config.get('material')]['solref'],
-            friction = [self.friction, 0.005, 0.0001],
+            solref = MATERIALS[config.get('material')].solref,
+            friction = MATERIALS[config.get('material')].friction,
         )
+
+        mesh = self._mj_spec.add_mesh()
+        mesh.name = f"{config.get('obj_name')}_mesh"
+        mesh.file = config.get('mesh_path')
+        mesh.scale = config.get('scale')
+
+        print(f"loaded object {config.get('obj_name')}")
+
+
+class SDFObject(BaseObject):
+    
+    def __init__(self,
+                 mj_spec,
+                 config_dict: dict):
+        super(SDFObject, self).__init__(mj_spec, config_dict)
+        self.load_mesh_object(self._config)
+        
+    def load_mesh_object(self, config):
+
+        # load the mesh files
+        geom = self.obj_body.add_geom(
+            type = mujoco.mjtGeom.mjGEOM_SDF,
+            meshname = f"{config.get('obj_name')}_mesh",
+            condim = config.get('contact').get('condim', 3),
+            rgba = config.get('mesh_color', [1, 0, 0, 1]),
+            mass = self._obj_mass,
+            solref = MATERIALS[config.get('material')].solref,
+            friction = MATERIALS[config.get('material')].friction,
+        )
+        geom.plugin.instance_name = "sdf1"
+        geom.plugin.active = 1
         
         mesh = self._mj_spec.add_mesh()
         mesh.name = f"{config.get('obj_name')}_mesh"
         mesh.file = config.get('mesh_path')
         mesh.scale = config.get('scale')
+        mesh.plugin.instance_name = "sdf1"
 
         print(f"loaded object {config.get('obj_name')}")
 
@@ -259,9 +243,8 @@ class BuildInObject:
 class FlexcompObject(BaseObject):
     def __init__(self,
                 mj_spec,
-                config_dict: dict,
-                friction: float):
-        super(FlexcompObject, self).__init__(mj_spec, config_dict, friction)
+                config_dict: dict):
+        super(FlexcompObject, self).__init__(mj_spec, config_dict)
         
         _mp = MeshObjects(obj_path=self._config.get('mesh_path'))
         _mp.convert_stl_to_msh()
@@ -300,24 +283,24 @@ class FlexcompObject(BaseObject):
         element_contact.set("internal", "false")
         # element_contact.set("activelayers", "1")
         element_contact.set("solimp", "0.95 0.99 0.001 0.5 2") # 0.0001
-        element_contact.set("solref", " ".join([str(c) for c in self.material_list[config["material"]]["solref"]])) # "0.01 1"
+        element_contact.set("solref", " ".join([str(c) for c in MATERIALS[config["material"]].solref])) # "0.01 1"
 
         element_edge = ET.SubElement(element_flexcomp, "edge")
         element_edge.set("damping", "0.5")
         element_edge.set("equality", "true")
         # element_edge.set("solimp", "0.95 0.99 0.001 0.5 2") # 0.0001
-        # element_edge.set("solref", " ".join([str(c) for c in self.material_list[config["material"]]["solref"]])) # "0.01 1"
+        # element_edge.set("solref", " ".join([str(c) for c in MATERIALS[config["material"]]["solref"]])) # "0.01 1"
 
         element_plugin = ET.SubElement(element_flexcomp, "plugin")
         element_plugin.set("plugin", "mujoco.elasticity.solid")
 
         element_config_0 = ET.SubElement(element_plugin, "config")
         element_config_0.set("key", "young")   
-        element_config_0.set("value", str(self.material_list[config["material"]]["young"]))
+        element_config_0.set("value", str(MATERIALS[config["material"]].young))
 
         element_config_1 = ET.SubElement(element_plugin, "config")
         element_config_1.set("key", "poisson")   
-        element_config_1.set("value", str(self.material_list[config["material"]]["poisson"]))
+        element_config_1.set("value", str(MATERIALS[config["material"]].poisson))
 
         # pin all the points which are at the bottom of the flexobject
         z_threshold = np.array(self.nodes)[:,3].min()
@@ -358,21 +341,28 @@ class SpheredObject(BaseObject):
     """
     def __init__(self,
                  mj_spec,
-                 config_dict, 
-                 friction):
-        super(SpheredObject, self).__init__(mj_spec, config_dict, friction)
+                 config_dict):
+        super(SpheredObject, self).__init__(mj_spec, config_dict)
 
-        self._sphered_object_dir = os.path.join(*self._config.get('mesh_path').split(os.sep)[2:-1],
-                                               self._config.get('obj_name') + "_sphered.npy")
+        self._sphered_object_dir = self._config.get('mesh_path').replace(".stl", "_sphered.npy")
 
         if not os.path.exists(self._sphered_object_dir):
             self.sphere_packing_sdf(mesh=trimesh.load(self._config.get('mesh_path')),
-                                    radius=0.001)
+                                    radius=0.0004)
 
         self.load_sphered_object(config=self._config)
 
 
     def sphere_packing_sdf(self, mesh, radius, bboxes=[]):
+        """
+        Generate sphere packing using SDF method
+        Args:
+            mesh: trimesh object
+            radius: float, radius of the spheres
+            bboxes: list of bounding boxes for fine sampling, each bbox is a tuple of (min, max) coordinates
+        Returns:
+            saves the sphere packing to self._sphered_object_dir as a .npy file
+        """
         mesh.vertices *= np.array(self._config.get('scale'))
         bounds = mesh.bounds
         radius_fine = radius / 4
@@ -432,6 +422,23 @@ class SpheredObject(BaseObject):
         file = self._sphered_object_dir
         scale = np.array(config.get('scale'))
 
+        # add mesh for visual
+        geom = self.obj_body.add_geom(
+            type = mujoco.mjtGeom.mjGEOM_MESH,
+            meshname = f"{config.get('obj_name')}_mesh",
+            condim = 1,
+            conaffinity = 0, # remove collision
+            contype = 0,    # remove collision
+            rgba = config.get('mesh_color', [1, 0, 0, 1]),
+            solref = MATERIALS[config.get('material')].solref,
+            friction = MATERIALS[config.get('material')].friction,
+        )
+
+        mesh = self._mj_spec.add_mesh()
+        mesh.name = f"{config.get('obj_name')}_mesh"
+        mesh.file = config.get('mesh_path')
+        mesh.scale = config.get('scale')
+
         if file.endswith(".npy"):
             decomposed_mesh = np.load(file, allow_pickle=True)
             self.FINAL_POINTS = decomposed_mesh.item()["positions"]
@@ -447,22 +454,23 @@ class SpheredObject(BaseObject):
         
         for point, radius in zip(self.FINAL_POINTS, self.FINAL_RADII):
             
-            material = self._config.get('material', 'normal')
+            material = self._config.get('material', 'default')
             color = self._config.get('mesh_color')
 
             geom = self.obj_body.add_geom(
                 type = mujoco.mjtGeom.mjGEOM_SPHERE,
+                group = 3, # make invisible in visualizer
                 condim = config.get('contact').get('condim', 3),
                 rgba = color,
                 size = [radius]*3,
                 pos = list(point),
-                # density = 1, #self.material_list[material]['density'],
-                mass = self._obj_mass, #/ len(self.FINAL_POINTS),
-                solref = self.material_list[material]['solref'],
-                friction = [self.friction, 0.005, 0.0001], # sliding friction between the two task objects
+                mass = self._obj_mass/len(self.FINAL_POINTS),
+                solref = MATERIALS[material].solref,
+                friction = MATERIALS[material].friction, # sliding friction between the two task objects
             )
 
-        print("loaded sphered object")
+        print("loaded sphered object {}".format(config.get('obj_name')))
+
 
 
 if __name__ == "__main__":

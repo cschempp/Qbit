@@ -24,15 +24,13 @@ class EEFPositionController:
                  kp: float = 2, # 30 for insertionnet, 1 for usb, 15 for admittance controller
                  kd: float = 0.02,
                  control_loop_dt: float = 0.001,
-                 joint_vel_max: np.ndarray = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]),
-                 eef_pos_vel_max: np.ndarray = np.array([0.1, 0.1, 0.1]) * 4,
+                 eef_pos_vel_max: np.ndarray = np.array([1.0, 1.0, 1.0]),
                  ):
 
         self._kp = kp
         self._kd = kd
         self._control_loop_dt = control_loop_dt
-        self._joint_vel_max = joint_vel_max
-        self._eef_pos_vel_max = np.array([10, 10, 10]) #eef_pos_vel_max # 
+        self._eef_pos_vel_max = eef_pos_vel_max
         
         self.sum_q_err = np.zeros(6)
         

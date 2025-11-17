@@ -15,6 +15,7 @@ import time
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
+from qbit.utils.mujoco_utils import get_relative_pose, get_body_pose_in_world
 from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion, MujocoEnvBase
 
 
@@ -22,7 +23,7 @@ NUM_RUNS = 300
 
 RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_labit_benchmark"
 
-SIM_TIMESTEP = 0.001
+SIM_TIMESTEP = 0.0005
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
@@ -30,7 +31,6 @@ JOINT_POSITION_CONTROL_T = 0.001  # Second
 
 POS_RANDOM_LIMIT = 0.001 # meter
 ROT_RANDOM_LIMIT = 1.5 # degree
-
 
 
 class PositionBasedInsertion(MujocoEnvBase):
@@ -54,24 +54,20 @@ class PositionBasedInsertion(MujocoEnvBase):
             server_modus,
         )
         
-        self.eef_position_controller = EEFPositionController(
-            kp = 2,
-            eef_pos_vel_max = np.array([0.1, 0.1, 0.1]) * 4
-        )
-        
         #self.data_eva = DataRecording(task_env_config_path=task_env_config_path)
 
     
     def termination(self, 
                     current_eef_pose_T: T,
                     goal_pose_T: T,
-                    threshold: float = 0.0004
+                    threshold: float = 0.0005
                     ) -> bool:
 
         # if current_eef_pose_T.translation[2] < goal_pose_T.translation[2] + threshold:
         #      return True
 
         error = np.linalg.norm(current_eef_pose_T.translation - goal_pose_T.translation)
+        print("current error: {}".format(error))
         if  error < threshold:
             return True
         if self.i >= 1000:
@@ -98,7 +94,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                 return
             
             # EEF Position control
-            next_eef_goal = self.eef_position_controller.eef_position_control(
+            next_eef_goal = self.robot._eef_position_controller.eef_position_control(
                 current_eef_pose = current_eef_pose_T,
                 target_eef_pose = goal_pose_T,
                 q_init = self.robot.get_current_joint_state()[0],
@@ -110,11 +106,11 @@ class PositionBasedInsertion(MujocoEnvBase):
                 viewer=viewer,
                 eef_pose=next_eef_goal.get_pos_quat_list(quat_format='xyzw'),
                 # eef_pose=goal_pose_T.get_pos_quat_list(quat_format='xyzw'),
-                qpos_thresh=1.0 * np.pi/180,
+                # qpos_thresh=1.0 * np.pi/180,
                 executing=False
             )
 
-            for _ in range(50):
+            for _ in range(1):
                 self.robot.spin()
                 self.step_mj_simulation()
 
@@ -128,31 +124,52 @@ class PositionBasedInsertion(MujocoEnvBase):
         """
         Main function to execute the LABIT benchmark task.
         """
+        # self._mj_scene = mujoco.MjvScene(self._mj_model, maxgeom=150000)
 
         with mujoco.viewer.launch_passive(self._mj_model, self._mj_data, show_left_ui=False, show_right_ui=False) as viewer:
-            
+
             self.update_view_scale()
-            update_view_camera_parameter(viewer)
-            # self.update_view_opt(viewer)
+            update_view_camera_parameter(viewer, view_type="labit_benchmark")
+            self.update_view_opt(viewer)
             viewer.sync()
 
-            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
+            # relative movement
+            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()  
+            # goal_pose_T = current_eef_pose_T
+            # goal_pose_T.translation += np.array([0.0, 0.0, 0.12])
+
+            # absolute goal pose
             # goal_pose_T = T(translation=np.array([0.7, 0.0, 0.4]),
             #                   quaternion=np.array([0.707, 0.707, 0.0, 0.0]))
-            goal_pose_T = current_eef_pose_T
-            goal_pose_T.translation += np.array([0.0, 0.0, 0.12])
 
-            # self.move_pose(goal_pose_T, viewer)
-            
-            # while 1:
-            #     self.robot.spin()
+            self._mj_data.ctrl[6] = 200  # close the gripper [0, 255] [open, close]
+            # for _ in range(500):
+            #     # self.robot.spin()
             #     self.step_mj_simulation()
+            #     viewer.sync()
 
-            #     if viewer != None:    
-            #         viewer.sync()
+            # object to grasp
+            goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "positioning_pin_d5_20_1_body")
+            goal_pose_T.translation[2] += 0.3
 
-            time.sleep(240)
+            self.move_pose(goal_pose_T, viewer)
+            # q_init, _ = self.robot.get_current_joint_state()
+            
+            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()  
+            goal_pose_T = current_eef_pose_T
+            goal_pose_T.translation += np.array([0.0, 0.0, -0.04])
+            self.move_pose(goal_pose_T, viewer)
 
+            self._mj_data.ctrl[6] = 245
+            while 1:
+                # self._mj_data.qpos[0:6] = self.eef_position_controller.ik.ik(goal_pose_T.matrix, q_init)
+                self.robot.spin()
+                self.step_mj_simulation()
+                
+                if viewer != None:
+                    viewer.sync()
+
+            time.sleep(60)
             return
 
 

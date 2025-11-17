@@ -38,5 +38,12 @@ def update_view_camera_parameter(viewer, view_type = "default"):
         viewer.cam.distance = 0.716194258999645
         viewer.cam.azimuth = -125.125
         viewer.cam.elevation = -38.75
-
+    
+    if view_type == "labit_benchmark":
+        viewer.cam.lookat[:] = np.array([-0.317,0.110, 1.032])
+        viewer.cam.distance = 0.7
+        viewer.cam.azimuth = -180.0
+        viewer.cam.elevation = -45.0
+        
     return
+

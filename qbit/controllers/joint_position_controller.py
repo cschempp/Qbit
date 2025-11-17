@@ -15,13 +15,14 @@ class JointPositionController:
     def __init__(self,
                  kp: float = 1.0, # 30 for insertionnet, 1 for usb, 15 for admittance controller
                  kd: float = 0.02,
-                 control_loop_dt: float = 0.0001,
+                 ki: float = 0.01,
+                 control_loop_dt: float = 0.001,
                  joint_vel_max: np.ndarray = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]),
                  ):
 
         self._kp = kp
         self._kd = kd
-        self._ki = 0.0001
+        self._ki = ki
         self._control_loop_dt = control_loop_dt
         self._joint_vel_max = joint_vel_max * control_loop_dt
         
@@ -37,10 +38,10 @@ class JointPositionController:
         
         # I-term
         self.sum_q_err += q_pos_err
-        q_corr =  self._kp * q_pos_err + self._ki * self.sum_q_err #+ self._kd * q_vel
+        q_corr =  self._kp * q_pos_err + self._ki * self.sum_q_err + self._kd * q_vel
         
         # PD_term
-        #q_corr =  self._kp * q_pos_err + self._kd * q_vel
+        # q_corr =  self._kp * q_pos_err + self._kd * q_vel
         
         # max_vel = self._joint_vel_max * self._control_loop_dt
         # q_corr = np.clip(q_corr, -max_vel, max_vel)

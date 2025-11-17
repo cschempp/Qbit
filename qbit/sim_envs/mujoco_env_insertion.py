@@ -17,13 +17,15 @@ import mujoco.viewer
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
 
-from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject, SDFObject
 
 from qbit.utils.tf_utils import T
+from qbit.utils.mj_viewer_utils import update_view_camera_parameter
+from qbit.utils.mujoco_material_definitions import MATERIALS
+
 from qbit.objects.env_objects import MjEnvObjects
 from qbit.sim_envs.mujoco_env_base import MujocoEnvBase
 
-from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 
 from qbit.interfaces.grpc.mj_grpc_proxy import QbitMjGrpcProxy
 
@@ -231,6 +233,8 @@ class MjEnvInsertion(MujocoEnvBase):
                     _object_hole = FlexcompObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['sphere']:
                     _object_hole = SpheredObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sdf']:
+                    _object_hole = SDFObject(self._mj_spec, task_obj, self.friction)
             else:
                 if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
                     _object_peg = DecomposedObject(self._mj_spec, task_obj, self.friction)
@@ -240,6 +244,8 @@ class MjEnvInsertion(MujocoEnvBase):
                     _object_peg = FlexcompObject(self._mj_spec, task_obj, self.friction)
                 elif task_obj.get('mesh_type') in ['sphere']:
                     _object_peg = SpheredObject(self._mj_spec, task_obj, self.friction)
+                elif task_obj.get('mesh_type') in ['sdf']:
+                    _object_peg = SDFObject(self._mj_spec, task_obj, self.friction)
 
         return _object_hole, _object_peg
     

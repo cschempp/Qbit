@@ -2,6 +2,11 @@
   <include file="ur5e.xml"/>
 
   <extension>
+    <!-- <plugin plugin="mujoco.sdf.sdflib">
+      <instance name="sdf1">
+      <config key="aabb" value="0"/>
+      </instance>
+    </plugin> -->
     <plugin plugin="mujoco.elasticity.solid"></plugin>
   </extension>
 

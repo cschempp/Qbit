@@ -9,6 +9,7 @@ import mujoco.viewer
 from qbit.utils.tf_utils import T
 from qbit.utils.mujoco_utils import print_object_names
 from qbit.controllers.joint_position_controller import JointPositionController
+from qbit.controllers.eef_position_controller import EEFPositionController
 
 
 class RobotBase:
@@ -42,7 +43,7 @@ class RobotBase:
         self._mj_spec = mujoco.MjSpec()
         
         self._mj_spec.from_file(self._config.get('mujoco_xml_path'))
-        
+
         self.reset_base_pose(arm_base_pos, arm_base_qua)
         
         # attributes
@@ -62,11 +63,18 @@ class RobotBase:
                 self._joint_position_controller = JointPositionController(
                     kp = controller.get('kp'),
                     kd = controller.get('kd'),
+                    ki = controller.get('ki'),
                     control_loop_dt = controller.get('control_loop'),
                     joint_vel_max = np.array(controller.get('vel_max'))
                 )
                 print("Joint position controller loaded")
-            elif controller.get('type') == 'eef_position_controller':
+            elif key == 'eef_position_controller':
+                self._eef_position_controller = EEFPositionController(
+                    kp = controller.get('kp'),
+                    kd = controller.get('kd'),
+                    control_loop_dt = controller.get('control_loop'),
+                    eef_pos_vel_max = np.array(controller.get('vel_max'))
+                )
                 pass
             
     
@@ -99,8 +107,8 @@ class RobotBase:
         Move the robot to the desired start pose: for example same as the UR5e in the lab.
         Advance simulation in two steps: before external force and control is set by user.
         """
-        # self._goal_joint_pos = np.array([0, -1.57, 1.57, -1.57, -1.57, 60.0/180 * np.pi])
-        self._goal_joint_pos = np.array([-0.22403618026677777, -1.1854278979642656, 1.7770384166108946, 
+        # self._goal_joint_pos = np.array([0, -1.57, 1.57, -1.57, -1.57, 60.0/180 * np.pi]) #-1.1854278979642656
+        self._goal_joint_pos = np.array([-0.22403618026677777, -2.0, 1.7770384166108946, 
                                          -2.1624069751818045, -1.57079592802717, 2.9175564735513344])
         self._mj_data.qpos[0: 6] = self._goal_joint_pos
         self._mj_data.ctrl[0: 6] = self._goal_joint_pos

@@ -10,6 +10,7 @@ import numpy as np
 import mujoco
 import mujoco.viewer
 
+import time
 
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
@@ -173,7 +174,7 @@ class PositionBasedInsertion(MjEnvInsertion):
             #     qpos_thresh=0.01 * np.pi/180,
             #     executing=True,
             # )
-
+       
             for _ in range(50):
                 start_pose_T.translation += np.random.rand(3) * 0.004 - 0.002
                 # set initial position directly

@@ -22,22 +22,6 @@ data_recording:
   save_folder: "exp_pipe_cylinder_ring"
 
 task_objects:
-  - obj_name: peg
-    obj_type: peg
-    mesh_type: mesh # mesh / sphere / coacd
-    mesh_path: /workspace/qbit/assets/task_env/colored_objects/cylinder_with_ring_0.04/cylinder_with_ring_0.04.obj
-    #/workspace/qbit/assets/task_env/peg_in_hole_simple/assets/simple_example_peg.obj
-    attach_body: 'tool0'
-    attach_pose:
-      position: [0, 0, 0.11]
-      quaternion: [1.0, 0.0, 0.0, 0.0] #[ 0.5, 0.5, 0.5, 0.5 ] # wxyz
-    scale: [0.89, 0.89, 0.89] #[0.00095, 0.00095, 0.00095]
-    mesh_color: [1, 0, 0, 1]
-    material: steel
-    mass: 0.001 # set the mass to 0.0001 to avoid the additional compensation (calibration)
-    contact:
-      condim: 3
-      friction: 0.3
   - obj_name: plate_benchmark
     mesh_type: mesh # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plate_benchmark.stl
@@ -61,13 +45,13 @@ task_objects:
       quaternion: [0.0, 1.0, 0.0, 0.0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: normal
+    material: default
     mesh_color: [1.0, 1.0, 1.0, 1.0]
     contact:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_2_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -81,7 +65,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_2_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -95,7 +79,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_2_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -109,7 +93,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_2_4
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -123,7 +107,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_0_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_0.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -137,7 +121,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_0_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_0.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -151,7 +135,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_0_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_0.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -165,7 +149,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_0_4
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_0.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -179,7 +163,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_1_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_1.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -193,7 +177,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_1_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_1.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -207,7 +191,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_1_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_1.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -221,7 +205,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: fixation_on_plate_3_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/fixation_on_plate_3.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -235,7 +219,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: housing_bottom
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/housing_bottom.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -244,13 +228,13 @@ task_objects:
     joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: normal
+    material: default
     mesh_color: [0.8, 0.8, 0.8, 1.0]
     contact:
       condim: 3
       friction: 0.3
   - obj_name: housing_top
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/housing_top.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -265,7 +249,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: tube_nozzle
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/tube_nozzle.stl
     attach_body: 'housing_top_body'
     attach_pose:
@@ -279,7 +263,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: nut_tube
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/nut_tube.stl
     attach_body: 'housing_top_body'
     attach_pose:
@@ -293,12 +277,13 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: housing_middle
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/housing_middle.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
       position: [0.420277, 0.0302231, -0.160]
       quaternion: [1.0, 0.0, 0.0, 0.0] # wxyz
+    joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
     material: plastic
@@ -307,7 +292,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: pin_pcb_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/pin_pcb.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -321,7 +306,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: pin_pcb_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/pin_pcb.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -335,7 +320,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: pin_pcb_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/pin_pcb.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -349,7 +334,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: pin_pcb_4
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/pin_pcb.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -363,7 +348,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_outside_fixed
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_outside_fixed.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -377,7 +362,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_inside_fixed_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_inside_fixed.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -391,7 +376,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_12_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_12.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -405,7 +390,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: bolt_middle_housing
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/bolt_middle_housing.stl
     attach_body: 'housing_middle_body'
     attach_pose:
@@ -419,7 +404,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: rotor_printed_part
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/rotor_printed_part.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -434,7 +419,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: bolt_rotor
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/bolt_rotor.stl
     attach_body: 'rotor_printed_part_body'
     attach_pose:
@@ -448,7 +433,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_12_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_12.stl
     attach_body: 'rotor_printed_part_body'
     attach_pose:
@@ -462,7 +447,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: cover_plate
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/cover_plate.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -477,26 +462,26 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: gearwheel_teeth_35_mod_2_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/gearwheel_teeth_35_mod_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
-      position: [0.430, 0.235, -0.02]
+      position: [0.430, 0.235, -0.011]
       quaternion: [0.0, 1.0, 0.0, 0.0] # wxyz
     joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
     material: plastic
-    mesh_color: [1.0, 0.0, 0.0, 1.0]
+    mesh_color: [0.0, 1.0, 0.0, 1.0]
     contact:
       condim: 3
       friction: 0.3
   - obj_name: gearwheel_teeth_35_mod_2_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/gearwheel_teeth_35_mod_2.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
-      position: [0.530, 0.235, -0.02]
+      position: [0.530, 0.235, -0.011]
       quaternion: [0.0, 1.0, 0.0, 0.0] # wxyz
     joint: free
     scale: [0.001, 0.001, 0.001]
@@ -507,7 +492,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: pcb
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/pcb.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -522,7 +507,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_inside_fixed_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_inside_fixed.stl
     attach_body: 'pcb_body'
     attach_pose:
@@ -536,7 +521,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_16_hexagon_head_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_16_hexagon_head.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -551,7 +536,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_16_hexagon_head_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_16_hexagon_head.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -566,7 +551,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_16_hexagon_head_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_16_hexagon_head.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -581,7 +566,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_16_hexagon_head_4
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_16_hexagon_head.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -596,7 +581,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: screw_m5_16_hexagon_head_5
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/screw_m5_16_hexagon_head.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -611,7 +596,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: positioning_pin_d5_20_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -626,7 +611,7 @@ task_objects:
       condim: 3
       friction: 0.5
   - obj_name: positioning_pin_d5_20_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -641,7 +626,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: positioning_pin_d5_20_3
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -656,7 +641,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: positioning_pin_d5_20_4
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -671,7 +656,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: positioning_pin_d5_20_5
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -686,7 +671,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: positioning_pin_d5_20_6
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -701,7 +686,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: tube
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/tube.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -716,11 +701,11 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: o_ring
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/o_ring.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
-      position: [0.395, 0.340, -0.023]
+      position: [0.395, 0.340, -0.024]
       quaternion: [ 0.7067295, 0.0230966, 0.7067295, -0.0230966] # wxyz
     joint: free
     scale: [0.001, 0.001, 0.001]
@@ -731,7 +716,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_inside_loose_1
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_inside_loose.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -746,7 +731,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_outside_loose
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_outside_loose.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -761,7 +746,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: plug_inside_loose_2
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/plug_inside_loose.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -776,7 +761,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: tube_clamp
-    mesh_type: mesh # mesh / sphere / coacd
+    mesh_type: sphere # mesh / sphere / coacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/tube_clamp.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:

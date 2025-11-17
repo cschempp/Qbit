@@ -17,7 +17,7 @@ from qbit.interfaces.grpc import qbit_pb2_grpc
 
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
-from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject, SDFObject
 from qbit.objects.env_objects import MjEnvObjects
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.interfaces.grpc.mj_grpc_proxy import QbitMjGrpcProxy
@@ -123,7 +123,6 @@ class MujocoEnvBase:
 
         # load task objects
         self.load_task_objects(self._config.get('task_objects'))
-
         
 
     def load_robot(self,
@@ -163,60 +162,19 @@ class MujocoEnvBase:
         Load the task objects
         """
 
-        friction_list = {
-            "steel": {
-                "steel": 0.4,
-                "plastic": 0.2,
-                "wood": 0.5,
-                "rubber": 0.2,
-                "feather": 0.2,
-            },
-            "plastic": {
-                "steel": 0.2,
-                "plastic": 0.25,
-                "wood": 0.3,
-                "rubber": 0.6,
-                "feather": 0.2,
-            },
-            "wood": {
-                "steel": 0.5,
-                "plastic": 0.3,
-                "wood": 0.5,
-                "rubber": 0.9,
-            },
-            "rubber": {
-                "steel": 0.2,
-                "plastic": 0.6,
-                "wood": 0.9,
-                "rubber": 1.8,
-                "feather": 0.2,
-            },
-            "feather": {
-                "steel": 0.2,
-                "plastic": 0.2,
-                "wood": 0.2,
-                "rubber": 0.2,
-                "feather": 0.2,
-            },
-            "normal": {
-                "normal": 0.4,
-            },
-        }
-
-        #self.materials = [task_obj.get('material') for task_obj in task_objects]
-        #self.friction = friction_list[self.materials[0]][self.materials[1]]
         self.task_objects = task_objects
 
         for task_obj in task_objects:
-            self.friction = task_obj.get('contact').get('friction', 0.4)
             if task_obj.get('mesh_type') in ['coacd', 'vhacd']:
-                DecomposedObject(self._mj_spec, task_obj, self.friction)
+                DecomposedObject(self._mj_spec, task_obj)
             elif task_obj.get('mesh_type') in ['mesh']:
-                MeshObject(self._mj_spec, task_obj, self.friction)
+                MeshObject(self._mj_spec, task_obj)
             elif task_obj.get('mesh_type') in ['flexcomp']:
-                FlexcompObject(self._mj_spec, task_obj, self.friction)
+                FlexcompObject(self._mj_spec, task_obj)
             elif task_obj.get('mesh_type') in ['sphere']:
-                SpheredObject(self._mj_spec, task_obj, self.friction)
+                SpheredObject(self._mj_spec, task_obj)
+            elif task_obj.get('mesh_type') in ['sdf']:
+                SDFObject(self._mj_spec, task_obj)
          
 
     def compile_model(self):
@@ -228,6 +186,8 @@ class MujocoEnvBase:
         self._mj_model.opt.timestep = self._sim_timestep
 
         self._mj_data = mujoco.MjData(self._mj_model)
+
+        # self._mj_scene = mujoco.MjvScene(self._mj_model, maxgeom=100000)
         
         print("Compiled the model")
         
@@ -309,6 +269,7 @@ class MujocoEnvBase:
         self._mj_model.vis.scale.contactheight = 0.01
         self._mj_model.vis.scale.forcewidth = 0.01
         self._mj_model.vis.map.force = 0.0
+        self._mj_model.vis.scale.framewidth = 0.005
 
 
     def step_mj_simulation(self):
@@ -371,6 +332,8 @@ class MujocoEnvBase:
                         pass
                         # print(f"Execution exceeds desired period. "
                         #       f"Loop time: {(end_t - start_t) * 1000 } ms")
+
+
 
 
 if __name__ == "__main__":

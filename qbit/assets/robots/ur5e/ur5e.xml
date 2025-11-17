@@ -1,10 +1,11 @@
 <mujoco model="ur5e">
   <compiler angle="radian" eulerseq="XYZ" meshdir="/workspace/qbit/assets/robots/ur5e/assets" autolimits="true"/>
-  <size memory="1G" />
+  <size memory="-1" />
   <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.0001" tolerance="1e-6" 
           gravity="0.0 0.0 -9.81"
-          o_solref="0.05 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="1.0 0.005 0.0001">
-    <flag override="enable" />
+          o_solref="0.0085 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="1.0 0.005 0.0001"
+          sdf_iterations="10" sdf_initpoints="40">
+    <!-- <flag override="enable" /> -->
   </option>
   <!-- <option integrator="implicitfast" cone="elliptic" solver="Newton" timestep="0.001" gravity="0.0 0.0 0.0"/> -->
   <!-- <option integrator="RK4" cone="elliptic" solver="Newton" timestep="0.001" /> -->
@@ -41,6 +42,8 @@
   </default>
 
   <asset>
+    <model name="2f85" file="/workspace/qbit/assets/gripper/2f85/2f85.xml"/>
+
     <material class="ur5e" name="black" rgba="0.033 0.033 0.033 1"/>
     <material class="ur5e" name="jointgray" rgba="0.278 0.278 0.278 1"/>
     <material class="ur5e" name="linkgray" rgba="0.82 0.82 0.82 1"/>
@@ -149,6 +152,10 @@
                     <geom material="linkgray" mass="0.00001" class="visual" mesh='fts_robot_adapter' pos="0.0 0.0 0.020" quat="0 0 -0.7071068 0.7071068"/>
                     <geom material="linkgray" mass="0.00001" class="visual" mesh='fts_axia80' pos="0.0 0.0 0.045" quat="0 0 -0.7071068 0.7071068"/>
                     <geom material="linkgray" mass="0.00001" class="visual" mesh='fts_tool_adapter' pos="0.0 0.0 0.059" quat="0 -0.7071068 0 0.7071068"/>
+
+                    <body name="gripper" pos="0 0 0.053">
+                      <attach model="2f85" body="2f85_base_mount" prefix="2f85_" />
+                    </body>
                   </body>
                 </body>
               </body>
