@@ -24,7 +24,7 @@ MATERIALS = {
     "default": Material(),
     "steel": Material(
         density=7850,
-        solref=[-500, -0.1],
+        solref=[0.01, 0.8],
         solimp=[0.95, 0.99, 0.0005, 0.5, 2],
         friction=[0.3, 0.001, 0.001],
         young=2e11,
@@ -32,7 +32,9 @@ MATERIALS = {
     ),
     "plastic": Material(
         density=1190,
-        solref=[-10.0, -0.1],
+        solref=[0.02, 1.0],
+        solimp=[0.9, 0.95, 0.001, 0.5, 2],
+        friction=[1.2, 0.01, 0.01],
         young=2.5e9,
         poisson=0.4,
     ),

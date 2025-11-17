@@ -9,7 +9,7 @@ from tracikpy import TracIKSolver
 import mujoco
 
 from qbit.utils.tf_utils import T
-from qbit.utils.mujoco_utils import convert_quat_to_xyzw
+from qbit.utils.mujoco_utils import convert_quat_to_xyzw, get_relative_pose
 from qbit.robots.robot_base import RobotBase
 
 class UR5eMjArm(RobotBase):
@@ -69,12 +69,12 @@ class UR5eMjArm(RobotBase):
         # print("Goal joint pos: ", q_goal)
 
         if executing:
-            qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+            qpos_err = np.abs(self._mj_data.qpos[:6] - q_goal)
             i = 0
             while (qpos_err > qpos_thresh).any():
                 self.spin()
                 mujoco.mj_step(self._mj_model, self._mj_data)
-                qpos_err = np.linalg.norm(self._mj_data.qpos[:6] - q_goal)
+                qpos_err = np.abs(self._mj_data.qpos[:6] - q_goal)
                 i += 1
                                 
                 if viewer: viewer.sync()
@@ -148,24 +148,25 @@ class UR5eMjArm(RobotBase):
         Get the EEF pose in the base frame
         It is the ground truth pose!!!
         """
-        # TCP in world
-        tcp_in_world_pos = self._mj_data.xpos[self.tcp_id, :]
-        tcp_in_world_qua = self._mj_data.xquat[self.tcp_id, :]
-        self._tcp_T = T(
-            translation = tcp_in_world_pos,
-            quaternion = convert_quat_to_xyzw(tcp_in_world_qua)
-        )
-        # Base in world
-        base_in_world_pos = self._mj_data.xpos[self.base_id, :]
-        base_in_world_quat = self._mj_data.xquat[self.base_id, :]
-        self._base_T = T(
-            translation = base_in_world_pos,
-            quaternion = convert_quat_to_xyzw(base_in_world_quat)
-        )
+        # # TCP in world
+        # tcp_in_world_pos = self._mj_data.xpos[self.tcp_id, :]
+        # tcp_in_world_qua = self._mj_data.xquat[self.tcp_id, :]
+        # self._tcp_T = T(
+        #     translation = tcp_in_world_pos,
+        #     quaternion = convert_quat_to_xyzw(tcp_in_world_qua)
+        # )
+        # # Base in world
+        # base_in_world_pos = self._mj_data.xpos[self.base_id, :]
+        # base_in_world_quat = self._mj_data.xquat[self.base_id, :]
+        # self._base_T = T(
+        #     translation = base_in_world_pos,
+        #     quaternion = convert_quat_to_xyzw(base_in_world_quat)
+        # )
         
-        tcp_in_base_T = np.linalg.inv(self._base_T.matrix) @ self._tcp_T.matrix
-        
-        return T.from_matrix(tcp_in_base_T)
+        # tcp_in_base_T = np.linalg.inv(self._base_T.matrix) @ self._tcp_T.matrix
+
+        return get_relative_pose(self._mj_model, self._mj_data, self.base_link_name, self.tcp_body_name)
+    
 
     def get_peg_pos_quat(self):
         return np.array(self._mj_data.xpos[9, :]) ,  np.array(self._mj_data.xquat[9, :])

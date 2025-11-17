@@ -19,7 +19,7 @@ env_objects:
     scale: [1, 1, 1]
 
 data_recording:
-  save_folder: "exp_pipe_cylinder_ring"
+  save_folder: "exp_labit_benchmark"
 
 task_objects:
   - obj_name: plate_benchmark
@@ -45,7 +45,7 @@ task_objects:
       quaternion: [0.0, 1.0, 0.0, 0.0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: default
+    material: plastic
     mesh_color: [1.0, 1.0, 1.0, 1.0]
     contact:
       condim: 3
@@ -228,7 +228,7 @@ task_objects:
     joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: default
+    material: plastic
     mesh_color: [0.8, 0.8, 0.8, 1.0]
     contact:
       condim: 3
@@ -257,7 +257,7 @@ task_objects:
       quaternion: [1.0, 0.0, 0.0, 0.0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -271,7 +271,7 @@ task_objects:
       quaternion: [0.9999979, 0, 0, 0.0020447] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -384,7 +384,7 @@ task_objects:
       quaternion: [0.7069585, -0.0144802, -0.7069585, -0.0144802] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -398,7 +398,7 @@ task_objects:
       quaternion: [1.0, 0.0, 0.0, 0.0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -427,7 +427,7 @@ task_objects:
       quaternion: [1.0, 0.0, 0.0, 0.0] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -441,7 +441,7 @@ task_objects:
       quaternion: [0.0007469, 0.7071064, -0.0007469, 0.7071064] # wxyz
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -530,7 +530,7 @@ task_objects:
     joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3
@@ -545,7 +545,7 @@ task_objects:
     joint: free
     scale: [0.001, 0.001, 0.001]
     mass: 0.001
-    material: plastic
+    material: steel
     mesh_color: [0.5, 0.5, 0.5, 1.0]
     contact:
       condim: 3

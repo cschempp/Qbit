@@ -39,10 +39,7 @@ class JointPositionController:
         # I-term
         self.sum_q_err += q_pos_err
         q_corr =  self._kp * q_pos_err + self._ki * self.sum_q_err + self._kd * q_vel
-        
-        # PD_term
-        # q_corr =  self._kp * q_pos_err + self._kd * q_vel
-        
+                
         # max_vel = self._joint_vel_max * self._control_loop_dt
         # q_corr = np.clip(q_corr, -max_vel, max_vel)
 

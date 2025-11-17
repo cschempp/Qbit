@@ -3,7 +3,7 @@
   <size memory="-1" />
   <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.0001" tolerance="1e-6" 
           gravity="0.0 0.0 -9.81"
-          o_solref="0.0085 1" o_solimp="0.9 0.95 0.001 0.5 2" o_friction="1.0 0.005 0.0001"
+          o_solref="0.0085 1" o_solimp="0.9 0.95 0.001 0.5 2"
           sdf_iterations="10" sdf_initpoints="40">
     <!-- <flag override="enable" /> -->
   </option>
@@ -154,7 +154,7 @@
                     <geom material="linkgray" mass="0.00001" class="visual" mesh='fts_tool_adapter' pos="0.0 0.0 0.059" quat="0 -0.7071068 0 0.7071068"/>
 
                     <body name="gripper" pos="0 0 0.053">
-                      <attach model="2f85" body="2f85_base_mount" prefix="2f85_" />
+                      <attach model="2f85" body="base_mount" prefix="2f85_" />
                     </body>
                   </body>
                 </body>
@@ -177,6 +177,8 @@
 
   <contact>
     <exclude name="flange_fts" body1='wrist_3_link' body2='tool0'/>
+    <exclude name="gripper" body1='wrist_3_link' body2='gripper'/>
+    <exclude name="fts_tool_adapter" body1='tool0' body2='gripper'/>
   </contact>
 
   <sensor>
