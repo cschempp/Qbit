@@ -103,10 +103,11 @@ class UR5eMjArm(RobotBase):
     def load_ik_solver(self):
         
         self._ik = TracIKSolver(
-            "/workspace/qbit/assets/robots/ur5e/ur5e_robot.urdf",
+            "/workspace/qbit/assets/robots/ur5e/ur5e_robot_calibrated.urdf",
             base_link="base_link",
-            tip_link="flange",
-            timeout=0.05,
+            tip_link="wrist_3_link", #"flange",
+            timeout=0.5,
+            epsilon=1e-6,
             solve_type='Distance'
         )
         return

@@ -119,7 +119,7 @@ class MujocoEnvBase:
         )
         
         # load environment objects
-        self.load_env_objects(self._config.get('env_objects'))
+        # self.load_env_objects(self._config.get('env_objects'))
 
         # load task objects
         self.load_task_objects(self._config.get('task_objects'))
@@ -186,8 +186,6 @@ class MujocoEnvBase:
         self._mj_model.opt.timestep = self._sim_timestep
 
         self._mj_data = mujoco.MjData(self._mj_model)
-
-        # self._mj_scene = mujoco.MjvScene(self._mj_model, maxgeom=100000)
         
         print("Compiled the model")
         
@@ -261,7 +259,7 @@ class MujocoEnvBase:
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_SITE
         # https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjtvisflag
         viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1
-        viewer.opt.label = mujoco.mjtLabel.mjLABEL_BODY
+        # viewer.opt.label = mujoco.mjtLabel.mjLABEL_BODY
 
 
     def update_view_scale(self):
@@ -270,6 +268,7 @@ class MujocoEnvBase:
         self._mj_model.vis.scale.forcewidth = 0.01
         self._mj_model.vis.map.force = 0.0
         self._mj_model.vis.scale.framewidth = 0.005
+        self._mj_model.vis.scale.framelength = 0.1
 
 
     def step_mj_simulation(self):

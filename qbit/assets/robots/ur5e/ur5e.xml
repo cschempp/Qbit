@@ -3,9 +3,8 @@
   <size memory="-1" />
   <option integrator="implicitfast" cone="elliptic" solver="CG" timestep="0.0001" tolerance="1e-6" 
           gravity="0.0 0.0 -9.81"
-          o_solref="0.0085 1" o_solimp="0.9 0.95 0.001 0.5 2"
-          sdf_iterations="10" sdf_initpoints="40">
-    <!-- <flag override="enable" /> -->
+          o_solref="0.02 1.0" o_solimp="0.9 0.95 0.001 0.5 2">
+    <flag override="enable" />
   </option>
   <!-- <option integrator="implicitfast" cone="elliptic" solver="Newton" timestep="0.001" gravity="0.0 0.0 0.0"/> -->
   <!-- <option integrator="RK4" cone="elliptic" solver="Newton" timestep="0.001" /> -->
@@ -14,19 +13,17 @@
     <default class="ur5e">
       <material specular="0.5" shininess="0.25"/>
       <joint axis="0 1 0" range="-6.28319 6.28319" armature="0.1"/>
-      <!-- <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="10000" biasprm="0 -10000 -600" forcerange="-150 150"/> -->
-      <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="2000" biasprm="0 -2000 -400" forcerange="-120 120"/>
-
+      <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="2000" biasprm="0 -2000 -400" forcerange="-150 150"/>
       <default class="size3">
         <default class="size3_limited">
           <joint range="-3.1415 3.1415"/>
-          <general gainprm="2000" ctrlrange="-3.1415 3.1415" ctrllimited="false" forcelimited="false"/>
+          <!-- <general gainprm="2000" ctrlrange="-3.1415 3.1415" ctrllimited="false" forcelimited="false"/> -->
+          <general ctrlrange="-3.1415 3.1415"/>
         </default>
       </default>
       <default class="size1">
-        <!-- <general gainprm="10000" biasprm="0 -10000 -2000" forcerange="-58 58"/> -->
-        <general gainprm="2000" biasprm="0 -2000 -500" forcerange="-120 120" ctrllimited="false" forcelimited="false"/>
-        <!-- <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="2000" biasprm="0 -2000 -400" forcerange="-120 120"/> -->
+        <general gainprm="500" biasprm="0 -500 -100" forcerange="-28 28" />
+        <!-- <general gainprm="2000" biasprm="0 -2000 -500" forcerange="-120 120" ctrllimited="false" forcelimited="false"/> -->
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
@@ -177,8 +174,6 @@
 
   <contact>
     <exclude name="flange_fts" body1='wrist_3_link' body2='tool0'/>
-    <exclude name="gripper" body1='wrist_3_link' body2='gripper'/>
-    <exclude name="fts_tool_adapter" body1='tool0' body2='gripper'/>
   </contact>
 
   <sensor>

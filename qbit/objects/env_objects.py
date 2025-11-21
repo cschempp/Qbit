@@ -37,7 +37,7 @@ class MjEnvObjects:
         site_body = self._mj_spec.worldbody.add_body(
             name = f"{obj_name}_body",
             pos = env_obj.get('attach_pose')['position'],
-            mass = 1.0,
+            mass = env_obj.get('mass'),
         )
         
         geom = site_body.add_geom(

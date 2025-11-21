@@ -5,6 +5,7 @@ Position based insertion in development mode and use for following tests:
  - Compare the mesh decomposition with different mesh scale
  - Test the surface toughness with the sphere-based method
 """
+from copy import deepcopy
 
 import numpy as np
 import mujoco
@@ -23,7 +24,7 @@ NUM_RUNS = 300
 
 RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_labit_benchmark"
 
-SIM_TIMESTEP = 0.0001
+SIM_TIMESTEP = 0.0005
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
@@ -60,7 +61,7 @@ class PositionBasedInsertion(MujocoEnvBase):
     def termination(self, 
                     q_current: T,
                     q_goal: T,
-                    threshold: float = 0.01
+                    threshold: float = 0.001
                     ) -> bool:
 
 
@@ -68,21 +69,133 @@ class PositionBasedInsertion(MujocoEnvBase):
         with np.printoptions(precision=4, floatmode="fixed", suppress=True):
             print("current error: {}".format(error))
 
-        if  all(error < threshold):
+        if  (all(error <= threshold)):
             return True
 
         return False
 
+    def mocap_move_pose(self, viewer, _goal_pose_T: T = None,):
+        integration_dt: float = 1.0
+
+        # Damping term for the pseudoinverse. This is used to prevent joint velocities from
+        # becoming too large when the Jacobian is close to singular.
+        damping: float = 1e-4
+
+        # Simulation timestep in seconds.
+        # dt: float = 0.002
+
+        # Maximum allowable joint velocity in rad/s. Set to 0 to disable.
+        max_angvel = np.pi
+
+        site_id = self._mj_model.site("attachment_site").id
+
+        # Get the dof and actuator ids for the joints we wish to control.
+        joint_names = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        actuator_names = [
+            "shoulder_pan",
+            "shoulder_lift",
+            "elbow",
+            "wrist_1",
+            "wrist_2",
+            "wrist_3",
+        ]
+        dof_ids = np.array([self._mj_model.joint(name).id for name in joint_names])
+        # Note that actuator names are the same as joint names in this case.
+        actuator_ids = np.array([self._mj_model.actuator(name).id for name in actuator_names])
+
+        # Initial joint configuration saved as a keyframe in the XML file.
+        # key_id = self._mj_model.key("home").id
+
+        # Mocap body we will control with our mouse.
+        mocap_id = self._mj_model.body("target").mocapid[0]
+
+        # Pre-allocate numpy arrays.
+        jac = np.zeros((6, self._mj_model.nv))
+        diag = damping * np.eye(6)
+        error = np.zeros(6)
+        error_pos = error[:3]
+        error_ori = error[3:]
+        site_quat = np.zeros(4)
+        site_quat_conj = np.zeros(4)
+        error_quat = np.zeros(4)        
+
+        while True:
+            # Set the target position of the end-effector site.
+            # self._mj_data.mocap_pos[mocap_id, 0:2] = circle(self._mj_data.time, 0.1, 0.5, 0.0, 0.5)
+
+            self._mj_data.mocap_pos[mocap_id, :] = _goal_pose_T.translation
+            self._mj_data.mocap_quat[mocap_id, :] = _goal_pose_T.quaternion
+
+            # Position error.
+            error_pos[:] = self._mj_data.mocap_pos[mocap_id] - self._mj_data.site(site_id).xpos
+
+            # Orientation error.
+            mujoco.mju_mat2Quat(site_quat, self._mj_data.site(site_id).xmat)
+            mujoco.mju_negQuat(site_quat_conj, site_quat)
+            mujoco.mju_mulQuat(error_quat, self._mj_data.mocap_quat[mocap_id], site_quat_conj)
+            mujoco.mju_quat2Vel(error_ori, error_quat, 1.0)
+
+            # Get the Jacobian with respect to the end-effector site.
+            mujoco.mj_jacSite(self._mj_model, self._mj_data, jac[:3], jac[3:], site_id)
+
+            # Solve system of equations: J @ dq = error.
+            dq = jac.T @ np.linalg.solve(jac @ jac.T + diag, error)
+
+            # Scale down joint velocities if they exceed maximum.
+            if max_angvel > 0:
+                dq_abs_max = np.abs(dq).max()
+                if dq_abs_max > max_angvel:
+                    dq *= max_angvel / dq_abs_max
+
+            # Integrate joint velocities to obtain joint positions.
+            q = self._mj_data.qpos.copy()
+            mujoco.mj_integratePos(self._mj_model, q, dq, integration_dt)
+            
+            min, max = self._mj_model.jnt_range.T
+            jointrangelen = len(q)
+            min = np.append(np.array(min), np.zeros(jointrangelen - len(min)))
+            max = np.append(np.array(max), np.zeros(jointrangelen - len(max)))
+            
+            # Set the control signal.
+            np.clip(q, min, max, out=q)
+            self._mj_data.ctrl[actuator_ids] = q[dof_ids]
+
+            # Step the simulation.
+            mujoco.mj_step(self._mj_model, self._mj_data)
+
+            if viewer is not None:
+                viewer.sync()
+            
+            with np.printoptions(precision=4, floatmode="fixed", suppress=True):
+                print("[ROBOT] error position: {:.4f}, error orientation: {:.4f}".format(
+                    np.linalg.norm(error_pos), np.linalg.norm(error_ori)))
+
+            if np.linalg.norm(error_pos) < 0.0003 and np.linalg.norm(error_ori) < 0.001:
+                print("[ROBOT] reached goal pose")
+                break
 
     def move_pose(self,
-                  goal_pose_T: T,
-                  viewer
+                  viewer,
+                  _goal_pose_T: T = None,
+                  qgoal: np.ndarray = None
                   ):
-        self.i = 0
-
         
-        q_goal = self.robot._eef_position_controller.ik.ik(goal_pose_T.matrix, self.robot.get_current_joint_state()[0])
-
+        q_init = self.robot.get_current_joint_state()[0]
+        if qgoal is not None:
+            q_goal = qgoal
+        else:
+            q_goal = self.robot._eef_position_controller.ik.ik(_goal_pose_T.matrix, q_init) 
+        
+        t_max = 5.0  # seconds
+        i = 0
+        # self._mj_data.ctrl[0:6] = q_goal
         while 1:
             # get states
             q_current, _ = self.robot.get_current_joint_state()
@@ -90,6 +203,13 @@ class PositionBasedInsertion(MujocoEnvBase):
             # current_joint_state = self.robot.get_current_joint_state()
             # measured_wrench = self.robot.get_fts_data(transform_to_base=True)
             
+            # self._mj_data.ctrl[0:6] = q_goal
+            # self._mj_data.qpos[6] = self._gripper_qpos
+            # self._mj_data.qpos[10] = self._gripper_qpos
+
+            # t = i*self._sim_timestep/t_max
+            # t = np.minimum(t, 1.0)
+            # target = q_init * (1-t) + q_goal * t
 
             # Check the termination condition
             if self.termination(q_current, q_goal):
@@ -100,7 +220,7 @@ class PositionBasedInsertion(MujocoEnvBase):
             # EEF Position control
             next_eef_goal = self.robot._eef_position_controller.eef_position_control(
                 current_eef_pose = current_eef_pose_T,
-                target_eef_pose = goal_pose_T,
+                target_eef_pose = _goal_pose_T,
                 q_init = self.robot.get_current_joint_state()[0],
                 return_q_cmd=False
             )
@@ -114,127 +234,144 @@ class PositionBasedInsertion(MujocoEnvBase):
                 executing=False
             )
 
+            
             for _ in range(1):
                 self.robot.spin()
                 self.step_mj_simulation()
 
             if viewer != None:    
                 viewer.sync()
-            
-            self.i += 1
-        
-        self._mj_data.qpos[0:6] = self.robot._eef_position_controller.ik.ik(goal_pose_T.matrix, q_current)
+            i += 1
+
+        # self._mj_data.ctrl[0:6] = q_goal
+        # self._mj_data.ctrl[0:6] = self.robot.get_current_joint_state()[0]
+        pos_a, quat_a =  get_body_pose_in_world(self._mj_model, self._mj_data, "tool0")
+        print("tool0 in world frame: pos {}, quat {}".format(pos_a, quat_a))  
+
 
     def set_gripper_position(self, position: float, viewer):
         """
         Set the gripper position (width between fingers).
-        position: float, range from [0.0, 0.08] meter
+        position: float, range from [0.0, 0.085] meter [fully closed, fully open]
         """
-        min_width = 0.0181 # mujoco measured opening when logical position = 0.0
-        max_width = 0.0983  # mujoco measured opening when logical position = 0.08
-        threshold = 0.0009  # stop when measured opening is within this tolerance
 
-        # map logical position in [0.0, 0.08] to mujoco measured opening
-        position_clipped = float(np.clip(position, 0.0, 0.08))
-        target_measured = min_width + (position_clipped / 0.08) * (max_width - min_width)
+        while True:
+            
+            self._mj_data.ctrl[6] = 255 - 255 * position / 0.085
+            mujoco.mj_step(self._mj_model, self._mj_data)
 
-        # set actuator command (0..255), inverted in this model
-        self._mj_data.ctrl[6] = 255 - int(position_clipped / 0.08 * 255)
-
-        # step simulation until measured opening reaches the target within threshold
-        print("[SET GRIPPER] Target opening: {:.4f} m".format(position))
-        current = self.get_gripper_opening()
-        while abs(current - target_measured) > threshold:
-            self.robot.spin()
-            self.step_mj_simulation()
-            current = self.get_gripper_opening()
-            print("[SET GRIPPER] Current opening: {:.4f} m, Target: {:.4f} m".format(current, target_measured))
-
+            with np.printoptions(precision=4, floatmode="fixed", suppress=True):
+                print("[GRIPPER] qvel: {}".format(self._mj_data.qvel[6:13]))
+            
             if viewer is not None:
                 viewer.sync()
+            
+            if any(abs(self._mj_data.qvel[6:13]) < 0.003):
+                break
         
-        # compute logical position (0..0.08) from mujoco measured opening
-        measured_logical = (current - min_width) / (max_width - min_width) * 0.08
-        measured_logical = float(np.clip(measured_logical, 0.0, 0.08))
-        print("[SET GRIPPER] Position {:.4f} m, Reached {:.4f} m".format(position_clipped, measured_logical))
+        print("[GRIPPER] gripper position set. Extra simulation steps for safety.")
+        for _ in range(int(.1//self._sim_timestep)):
+            mujoco.mj_step(self._mj_model, self._mj_data)
+    
 
+    def apply_gravity_compensation(self):
+        # Name of bodies we wish to apply gravity compensation to.
+        body_names = [
+            "base",
+            "shoulder_link",
+            "upper_arm_link",
+            "forearm_link",
+            "wrist_1_link",
+            "wrist_2_link",
+            "wrist_3_link",
+            "tool0"
+        ]
+        body_ids = [self._mj_model.body(name).id for name in body_names]
+        
+        self._mj_model.body_gravcomp[body_ids] = 1.0
     
-    def get_gripper_opening(self) -> float:
-        """
-        Get the gripper opening width in meter
-        """
-        left_finger_pos, _ = get_body_pose_in_world(self._mj_model, self._mj_data, "2f85_left_silicone_pad")
-        right_finger_pos, _ = get_body_pose_in_world(self._mj_model, self._mj_data, "2f85_right_silicone_pad")
-        opening_width = np.linalg.norm(left_finger_pos - right_finger_pos)
 
-        return opening_width
-    
-    
+    def get_body_grasp_pose(self, body_name: str, z_offset: float):
+        body_id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, body_name)
+
+        body_pos = self._mj_data.xpos[body_id]                  # world position of body
+        body_R   = self._mj_data.xmat[body_id].reshape(3,3)     # 3×3 world-from-body rotation
+        body_quat = self._mj_data.xquat[body_id, :] 
+
+        z_body_in_world = body_R[:, 2]              # local z-axis expressed in world frame
+
+        # Ensure the returned orientation has the local z-axis pointing downwards
+        if z_body_in_world[2] > 0:
+            # Rotate 180° around the body x-axis (in body frame) to flip local z.
+            # This is achieved by post-multiplying the body rotation by diag([1, -1, -1]).
+            R_flip = np.diag([1.0, -1.0, -1.0])
+            R_new = body_R @ R_flip
+            # Convert the new rotation matrix to a quaternion using MuJoCo utility.
+            body_quat_new = np.zeros(4, dtype=float)
+            mujoco.mju_mat2Quat(body_quat_new, R_new.reshape(9))
+            body_quat = body_quat_new
+            z_body_used = R_new[:, 2]
+        else:
+            z_body_used = z_body_in_world
+
+        p_shifted_world = body_pos + z_offset * z_body_used * np.sign(z_body_used[2])
+
+        return p_shifted_world, body_quat
+
+
+    def labit_policy(self, viewer = None):
+        
+        body_name = "plug_inside_loose_2_body" #"positioning_pin_d5_20_1_body"
+        # close gripper# close gripper
+        self.set_gripper_position(0.02, viewer)  
+        
+        # move to body
+        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.1)
+        goal_pose_T = T(translation=pos,
+                          quaternion=quat)
+        self.mocap_move_pose(viewer=viewer, _goal_pose_T=goal_pose_T)
+
+        # move to grasp pose (body coordinate frame in between fingertips)
+        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.0092)
+        goal_pose_T_2 = T(translation=pos,
+                          quaternion=quat)
+        self.mocap_move_pose(_goal_pose_T=goal_pose_T_2, viewer=viewer)
+
+        # close the gripper to grasp
+        self.set_gripper_position(0.011, viewer)
+
+        # move away along object z axis
+        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.1)  
+        goal_pose_T_3 = T(translation=pos,
+                          quaternion=quat)
+        self.mocap_move_pose(_goal_pose_T=goal_pose_T_3, viewer=viewer)
+
+        while 1:
+            self.step_mj_simulation()
+
+            if viewer != None:
+                viewer.sync()
+        return
+
     def exec_labit(self):
         """
         Main function to execute the LABIT benchmark task.
         """
-        # self._mj_scene = mujoco.MjvScene(self._mj_model, maxgeom=150000)
 
+        # self.apply_gravity_compensation() # wont work; did it in xml
         with mujoco.viewer.launch_passive(self._mj_model, self._mj_data, show_left_ui=False, show_right_ui=False) as viewer:
             
             self.update_view_scale()
-            update_view_camera_parameter(viewer, view_type="labit_benchmark")
             self.update_view_opt(viewer)
-            viewer.sync()
-            
-            # print_object_names(self._mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR, self._mj_model.nbody, "Bodies in the model")
+            update_view_camera_parameter(viewer, view_type="labit_benchmark")
 
-            # relative movement
-            # current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()  
-            # goal_pose_T = current_eef_pose_T
-            # goal_pose_T.translation += np.array([0.0, 0.0, 0.12])
+            print_object_names(self._mj_model, mujoco.mjtObj.mjOBJ_JOINT, self._mj_model.nbody, "Bodies in the model")
 
-            # absolute goal pose
-            # goal_pose_T = T(translation=np.array([0.7, 0.0, 0.4]),
-            #                   quaternion=np.array([0.707, 0.707, 0.0, 0.0]))
-
-            # self.set_gripper_position(0.01, viewer)  # open gripper
-
-            # object to grasp
-            goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "positioning_pin_d5_20_1_body")
-            goal_pose_T.translation[2] += 0.4
-
-            self.move_pose(goal_pose_T, viewer)
-            # q_init, _ = self.robot.get_current_joint_state()
-            
-            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()  
-            goal_pose_T = current_eef_pose_T
-            goal_pose_T.translation += np.array([0.0, 0.0, -0.08])
-            self.move_pose(goal_pose_T, viewer)
-            self.set_gripper_position(0.0045, viewer)
-
-            while 1:
-                # self._mj_data.qpos[0:6] = self.eef_position_controller.ik.ik(goal_pose_T.matrix, q_init)
-                self.robot.spin()
-                self.step_mj_simulation()
-                
-                if viewer != None:
-                    viewer.sync()
-
-            time.sleep(60)
-            return
+            self.labit_policy(viewer=viewer)
 
 
-    def exec_insertion_headless(self):
-        start_pose_T, goal_pose_T = self.get_fixed_start_and_goal_pose()
-
-        # Move the robot to the initial position
-        self.robot.move_to_eef_pose(
-            viewer=None,
-            eef_pose=start_pose_T.get_pos_quat_list(quat_format='xyzw'),
-            qpos_thresh=0.001,
-            executing=True
-        )
-
-        self.move_pose(goal_pose_T, None)
-
-        # self.data_eva.plot_data()
+    def exec_labit_headless(self):
+        self.labit_policy()
 
         return
 
@@ -251,3 +388,4 @@ if __name__ == "__main__":
         sim_timestep=SIM_TIMESTEP,
         )
     mj.exec_labit()
+    # mj.exec_labit_headless()
