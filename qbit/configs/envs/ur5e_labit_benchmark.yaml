@@ -38,7 +38,7 @@ task_objects:
       condim: 3
       friction: 0.3
   - obj_name: parts_supply
-    mesh_type: sphere # mesh / sphere / coacd / vhacd
+    mesh_type: mesh # mesh / sphere / coacd / vhacd
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/parts_supply.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:

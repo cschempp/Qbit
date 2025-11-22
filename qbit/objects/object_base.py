@@ -42,9 +42,10 @@ class BaseObject:
         mesh = trimesh.load_mesh(meshfile)
         # mesh = mesh.subdivide_loop(iterations=0)
         # mesh.export(self._config.get('mesh_path')[:-4]+"_processed.stl")
+        mesh.vertices *= np.array(config.get('scale'))
         self.mesh_extents = mesh.extents
         self.mesh_center = mesh.centroid
-        mesh.vertices *= np.array(config.get('scale'))
+        # mesh.vertices -= self.mesh_center
 
         self._obj_volume = mesh.volume
         self._obj_mass = self._obj_volume * MATERIALS[config["material"]].density
@@ -66,17 +67,25 @@ class BaseObject:
         return start_position_hole, insertion_depth
     
     def attach_body(self, config):
+        parent_body_name = config.get('attach_body')
+
+        quat = self._config.get("attach_pose")["quaternion"]  # parent->mesh rotation
+        quat = np.array([quat[1], quat[2], quat[3], quat[0]])
+        R_parent_mesh = R.from_quat(quat).as_matrix()
+        center_in_parent = R_parent_mesh @ self.mesh_center
+
+        if parent_body_name == "table": center_in_parent = np.array([0,0,0])
         if self._config.get('attach_body') == 'world':
             self.obj_body = self._mj_spec.worldbody.add_body(
                 name = f"{config['obj_name']}_body",
-                pos = self.start_position_hole,
+                pos = self.start_position_hole + center_in_parent,
                 quat = config.get('attach_pose')['quaternion'],
                 )
         else:
             # if we want to have free moving object, we need to attach to world in order to add a freejoint.
             # If the body should have a free joint, but its parent body is not world, we attach to world
             # given the relative pose of parent body and the pose of the parent body in world.
-            parent_body_name = config.get('attach_body')
+            
             if config.get('joint') == 'free': 
                 pos = self._mj_spec.find_body(parent_body_name).pos
                 quat = self._mj_spec.find_body(parent_body_name).quat
@@ -87,7 +96,7 @@ class BaseObject:
 
                 parent_pose = T(translation=pos, quaternion=quat)._matrix
                 
-                attach_pose = T(translation=config.get('attach_pose')['position'], quaternion=quat_)._matrix
+                attach_pose = T(translation=config.get('attach_pose')['position'] + center_in_parent, quaternion=quat_)._matrix
                 attach_pose_in_world = T.from_matrix(parent_pose @ attach_pose)
                 posquat_world = attach_pose_in_world.get_pos_quat_list(quat_format="wxyz")
 
@@ -100,7 +109,7 @@ class BaseObject:
             else:
                 self.obj_body = self._mj_spec.find_body(parent_body_name).add_body(
                     name = f"{config.get('obj_name')}_body",
-                    pos = config.get('attach_pose')['position'],
+                    pos = config.get('attach_pose')['position'] + center_in_parent,
                     quat = config.get('attach_pose')['quaternion'],
                     )
             
@@ -156,11 +165,15 @@ class MeshObject(BaseObject):
         self.load_mesh_object(self._config)
         
     def load_mesh_object(self, config):
+        
+        if self._config.get('attach_body') == "table": center_in_parent = np.array([0,0,0])
+        else: center_in_parent = self.mesh_center
 
         # load the mesh files
         geom = self.obj_body.add_geom(
             type = mujoco.mjtGeom.mjGEOM_MESH,
             meshname = f"{config.get('obj_name')}_mesh",
+            pos = -center_in_parent,
             condim = config.get('contact').get('condim', 3),
             rgba = config.get('mesh_color', [1, 0, 0, 1]),
             mass = self._obj_mass, #config.get('mass'),
@@ -426,6 +439,7 @@ class SpheredObject(BaseObject):
         geom = self.obj_body.add_geom(
             type = mujoco.mjtGeom.mjGEOM_MESH,
             meshname = f"{config.get('obj_name')}_mesh",
+            pos = -self.mesh_center,
             condim = 1,
             conaffinity = 0, # remove collision
             contype = 0,    # remove collision
@@ -444,13 +458,15 @@ class SpheredObject(BaseObject):
             self.FINAL_POINTS = decomposed_mesh.item()["positions"]
             self.FINAL_RADII = decomposed_mesh.item()["radii"]
             # FINAL_COLORS = decomposed_mesh.item()["colors"]
-        elif file.endswith(".csv"):
-            # data is of shape (n,4): [x, y, z, radius], n being number of spheres
-            # skip header in .csv with skiprows=1
-            data = np.loadtxt(file, delimiter=',', skiprows=1)
-            scale_xproto = np.max(self.mesh_extents/(np.max(data[:, :3])-np.min(data[:, :3])))
-            self.FINAL_POINTS = data[:, :3][::5] * scale_xproto * scale + self.mesh_center * scale
-            self.FINAL_RADII = data[:, 3][::5] * scale_xproto * scale[0]
+        # elif file.endswith(".csv"): # xProtosphere support
+        #     # data is of shape (n,4): [x, y, z, radius], n being number of spheres
+        #     # skip header in .csv with skiprows=1
+        #     data = np.loadtxt(file, delimiter=',', skiprows=1)
+        #     scale_xproto = np.max(self.mesh_extents/(np.max(data[:, :3])-np.min(data[:, :3])))
+        #     self.FINAL_POINTS = data[:, :3][::5] * scale_xproto * scale + self.mesh_center * scale
+        #     self.FINAL_RADII = data[:, 3][::5] * scale_xproto * scale[0]
+        else:
+            raise NotImplementedError("Only .npy sphere decomposition files are supported for now.")
         
         for point, radius in zip(self.FINAL_POINTS, self.FINAL_RADII):
             
@@ -459,11 +475,11 @@ class SpheredObject(BaseObject):
 
             geom = self.obj_body.add_geom(
                 type = mujoco.mjtGeom.mjGEOM_SPHERE,
-                group = 3, # make invisible in visualizer
+                group = 2, # make invisible in visualizer
                 condim = config.get('contact').get('condim', 3),
                 rgba = color,
                 size = [radius]*3,
-                pos = list(point),
+                pos = list(point-self.mesh_center),
                 mass = self._obj_mass/len(self.FINAL_POINTS),
                 solref = MATERIALS[material].solref,
                 friction = MATERIALS[material].friction, # sliding friction between the two task objects

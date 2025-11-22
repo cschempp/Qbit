@@ -320,7 +320,8 @@ class PositionBasedInsertion(MujocoEnvBase):
 
 
     def labit_policy(self, viewer = None):
-        
+        # TODO: translate object frame into volume center. Add this offset also to body attach pose when loading the object. 
+
         body_name = "plug_inside_loose_2_body" #"positioning_pin_d5_20_1_body"
         # close gripper# close gripper
         self.set_gripper_position(0.02, viewer)  
@@ -364,7 +365,9 @@ class PositionBasedInsertion(MujocoEnvBase):
             self.update_view_scale()
             self.update_view_opt(viewer)
             update_view_camera_parameter(viewer, view_type="labit_benchmark")
-
+            viewer.sync()
+            
+            time.sleep(60.0)
             print_object_names(self._mj_model, mujoco.mjtObj.mjOBJ_JOINT, self._mj_model.nbody, "Bodies in the model")
 
             self.labit_policy(viewer=viewer)
