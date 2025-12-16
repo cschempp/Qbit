@@ -1,6 +1,6 @@
 
 robot_type: ur5e
-mujoco_xml_path: /workspace/qbit/assets/robots/ur5e/scene_test.xml
+mujoco_xml_path: /workspace/qbit/assets/robots/ur5e/scene_test_2.xml
 
 joints:
   - shoulder_pan_joint

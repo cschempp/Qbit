@@ -17,7 +17,7 @@ from qbit.interfaces.grpc import qbit_pb2_grpc
 
 from qbit.robots.ur5e_mj import UR5eMjArm
 from qbit.robots.kuka_iiwa14_mj import KUKAiiwa14MjArm
-from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject, SDFObject
+from qbit.objects.object_base import DecomposedObject, MeshObject, FlexcompObject, SpheredObject, SDFObject, BaseObject
 from qbit.objects.env_objects import MjEnvObjects
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
 from qbit.interfaces.grpc.mj_grpc_proxy import QbitMjGrpcProxy
@@ -175,6 +175,8 @@ class MujocoEnvBase:
                 SpheredObject(self._mj_spec, task_obj)
             elif task_obj.get('mesh_type') in ['sdf']:
                 SDFObject(self._mj_spec, task_obj)
+            else:
+                BaseObject(self._mj_spec, task_obj)
          
 
     def compile_model(self):

@@ -31,7 +31,8 @@ class BaseObject:
         self._mj_spec = mj_spec
         self._config = config_dict
 
-        self.start_position_hole, self.insertion_depth = self.get_hole_pose_depth(self._config)
+        if self._config.get('mesh_path'):
+            self.start_position_hole, self.insertion_depth = self.get_hole_pose_depth(self._config)
         self.attach_body(config=self._config)
 
     def get_hole_pose_depth(self, config):
@@ -40,12 +41,10 @@ class BaseObject:
         meshfile = self.mesh_path
 
         mesh = trimesh.load_mesh(meshfile)
-        # mesh = mesh.subdivide_loop(iterations=0)
-        # mesh.export(self._config.get('mesh_path')[:-4]+"_processed.stl")
+
         mesh.vertices *= np.array(config.get('scale'))
         self.mesh_extents = mesh.extents
         self.mesh_center = mesh.centroid
-        # mesh.vertices -= self.mesh_center
 
         self._obj_volume = mesh.volume
         self._obj_mass = self._obj_volume * MATERIALS[config["material"]].density
@@ -69,12 +68,20 @@ class BaseObject:
     def attach_body(self, config):
         parent_body_name = config.get('attach_body')
 
+        if config.get('mesh_type') == "none":
+            self.obj_body = self._mj_spec.find_body(parent_body_name).add_body(
+                name = f"{config.get('obj_name')}_body",
+                pos = config.get('attach_pose')['position'],
+                quat = config.get('attach_pose')['quaternion'],
+                )
+            return
+
         quat = self._config.get("attach_pose")["quaternion"]  # parent->mesh rotation
         quat = np.array([quat[1], quat[2], quat[3], quat[0]])
         R_parent_mesh = R.from_quat(quat).as_matrix()
         center_in_parent = R_parent_mesh @ self.mesh_center
 
-        if parent_body_name == "table": center_in_parent = np.array([0,0,0])
+        if config.get('obj_name') in ["plate_benchmark", "housing_bottom", "housing_top", "housing_middle", "rotor_printed_part", "pcb"]: center_in_parent = np.array([0,0,0])
         if self._config.get('attach_body') == 'world':
             self.obj_body = self._mj_spec.worldbody.add_body(
                 name = f"{config['obj_name']}_body",
@@ -166,7 +173,7 @@ class MeshObject(BaseObject):
         
     def load_mesh_object(self, config):
         
-        if self._config.get('attach_body') == "table": center_in_parent = np.array([0,0,0])
+        if config.get('obj_name') in ["plate_benchmark", "housing_bottom", "housing_top", "housing_middle", "rotor_printed_part", "pcb"]: center_in_parent = np.array([0,0,0])
         else: center_in_parent = self.mesh_center
 
         # load the mesh files
@@ -361,7 +368,7 @@ class SpheredObject(BaseObject):
 
         if not os.path.exists(self._sphered_object_dir):
             self.sphere_packing_sdf(mesh=trimesh.load(self._config.get('mesh_path')),
-                                    radius=0.0004)
+                                    radius=0.0002)
 
         self.load_sphered_object(config=self._config)
 
@@ -382,9 +389,9 @@ class SpheredObject(BaseObject):
         
         print("[sphere_packing_sdf] Generating sample points...")
         # coarse sampling
-        x = np.arange(bounds[0][0], bounds[1][0], radius*2)
-        y = np.arange(bounds[0][1], bounds[1][1], radius*2)
-        z = np.arange(bounds[0][2], bounds[1][2], radius*2)
+        x = np.arange(bounds[0][0]+radius, bounds[1][0]+radius, radius*2)
+        y = np.arange(bounds[0][1]+radius, bounds[1][1]+radius, radius*2)
+        z = np.arange(bounds[0][2]+radius, bounds[1][2]+radius, radius*2)
 
         # bbox_center = np.array([0.110, 0.008, 0.025])
         # bbox_min = bbox_center - np.array([0.005, 0.005, 0.015])
@@ -435,11 +442,14 @@ class SpheredObject(BaseObject):
         file = self._sphered_object_dir
         scale = np.array(config.get('scale'))
 
+        if config.get('obj_name') in ["plate_benchmark", "housing_bottom", "housing_top", "housing_middle", "rotor_printed_part", "pcb"]: center_in_parent = np.array([0,0,0])
+        else: center_in_parent = self.mesh_center
+
         # add mesh for visual
         geom = self.obj_body.add_geom(
             type = mujoco.mjtGeom.mjGEOM_MESH,
             meshname = f"{config.get('obj_name')}_mesh",
-            pos = -self.mesh_center,
+            pos = -center_in_parent,
             condim = 1,
             conaffinity = 0, # remove collision
             contype = 0,    # remove collision
@@ -472,14 +482,16 @@ class SpheredObject(BaseObject):
             
             material = self._config.get('material', 'default')
             color = self._config.get('mesh_color')
+            if self._config.get('show_spheres', False): group = 2
+            else: group = 3
 
             geom = self.obj_body.add_geom(
                 type = mujoco.mjtGeom.mjGEOM_SPHERE,
-                group = 2, # make invisible in visualizer
+                group = group, # make invisible in visualizer with group = 3
                 condim = config.get('contact').get('condim', 3),
                 rgba = color,
                 size = [radius]*3,
-                pos = list(point-self.mesh_center),
+                pos = list(point-center_in_parent),
                 mass = self._obj_mass/len(self.FINAL_POINTS),
                 solref = MATERIALS[material].solref,
                 friction = MATERIALS[material].friction, # sliding friction between the two task objects

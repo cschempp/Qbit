@@ -5,26 +5,37 @@ Position based insertion in development mode and use for following tests:
  - Compare the mesh decomposition with different mesh scale
  - Test the surface toughness with the sphere-based method
 """
+# for recording videos headless in mujoco
+import os
+import sys
+import signal
+os.environ["MUJOCO_GL"] = "egl"
+
 from copy import deepcopy
 
 import numpy as np
 import mujoco
 import mujoco.viewer
 
+import matplotlib.pyplot as plt
 import time
+import imageio
 
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
-from qbit.utils.mujoco_utils import get_relative_pose, get_body_pose_in_world, print_object_names
+from qbit.utils.mujoco_utils import get_relative_pose, get_body_pose_in_world, print_object_names, convert_quat_to_xyzw
+from qbit.utils.data_recording_utils import DataRecording
 from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion, MujocoEnvBase
-
+from scipy.spatial.transform import Rotation as R
+from scipy.spatial import geometric_slerp
+from scipy.spatial.transform import Slerp
 
 NUM_RUNS = 300
 
 RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_labit_benchmark"
 
-SIM_TIMESTEP = 0.0005
+SIM_TIMESTEP = 0.0005 #0.0005
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
@@ -55,37 +66,76 @@ class PositionBasedInsertion(MujocoEnvBase):
             server_modus,
         )
         
-        #self.data_eva = DataRecording(task_env_config_path=task_env_config_path)
+        self.data_recording = DataRecording(task_env_config_path=task_env_config_path,
+                                            robot=self.robot,
+                                            sim_timestep=sim_timestep,
+                                            live_plotting=False)
 
-    
+       
+        self._mj_renderer = mujoco.Renderer(self._mj_model, height=720, width=1280)
+        self.cam = mujoco.MjvCamera()
+
+        # Example: set camera position and orientation
+        self.cam.azimuth = 0       # horizontal angle
+        self.cam.elevation = -60    # vertical angle
+        self.cam.distance = 1.0     # distance to model center
+        self.cam.lookat = [-0.2, 0, 1] # center point
+        self.frames = []
+        self.fps = 24
+        self.iterations_per_frame = int(1/self._sim_timestep/self.fps)
+
     def termination(self, 
-                    q_current: T,
-                    q_goal: T,
+                    pose_goal,
+                    pose_current,
                     threshold: float = 0.001
                     ) -> bool:
 
+        # Position error.
+        error_pos = pose_goal.translation - pose_current.translation
 
-        error = np.abs(q_current - q_goal)
-        with np.printoptions(precision=4, floatmode="fixed", suppress=True):
-            print("current error: {}".format(error))
-
-        if  (all(error <= threshold)):
+        # Orientation error.
+        site_quat_conj = np.zeros(4)
+        error_quat = np.zeros(4)
+        error_ori = np.zeros(3)
+        site_quat = pose_current.quaternion
+        mujoco.mju_negQuat(site_quat_conj, site_quat)
+        mujoco.mju_mulQuat(error_quat, pose_goal.quaternion, site_quat_conj)
+        mujoco.mju_quat2Vel(error_ori, error_quat, 1.0)
+                
+        if (np.linalg.norm(error_pos) < 0.001 and np.linalg.norm(error_ori) < 0.005) or (all(np.abs(self._mj_data.qvel[0:6]) < 0.00001)):
             return True
 
         return False
+    
+    
+    def minjerk_s(self, t, T):
+        tau = np.clip(t/T, 0.0, 1.0)
+        return tau #10*tau**3 - 15*tau**4 + 6*tau**5
 
-    def mocap_move_pose(self, viewer, _goal_pose_T: T = None,):
-        integration_dt: float = 1.0
+
+    def minimal_jerk_pose(self, p0, q0, p1, q1, t, T):
+        s = self.minjerk_s(t, T)
+        p_t = p0 + s * (p1 - p0)
+        # q_t = geometric_slerp(q0, q1, s)
+        slerp = Slerp(times=[0.0, 1.0], rotations=R.concatenate([R.from_quat(q0), R.from_quat(q1)]))
+        q_t = slerp(s)
+        return p_t, q_t.as_quat()
+
+
+    def mocap_move_pose(self, viewer, label: str, _goal_pose_T: T = None, pos_offset: np.array = np.array([0.0, 0.0, 0.0])):
+        _goal_pose_T.translation += pos_offset
+
+        integration_dt: float = 0.9
 
         # Damping term for the pseudoinverse. This is used to prevent joint velocities from
         # becoming too large when the Jacobian is close to singular.
         damping: float = 1e-4
 
         # Simulation timestep in seconds.
-        # dt: float = 0.002
+        dt: float = self._sim_timestep
 
         # Maximum allowable joint velocity in rad/s. Set to 0 to disable.
-        max_angvel = np.pi
+        max_angvel = 2*np.pi
 
         site_id = self._mj_model.site("attachment_site").id
 
@@ -123,15 +173,31 @@ class PositionBasedInsertion(MujocoEnvBase):
         error_pos = error[:3]
         error_ori = error[3:]
         site_quat = np.zeros(4)
+        q0 = np.zeros(4)
         site_quat_conj = np.zeros(4)
         error_quat = np.zeros(4)        
-
+        
+        start_time_mj = self._mj_data.time
+        p0 = self._mj_data.site(site_id).xpos
+        mujoco.mju_mat2Quat(q0, self._mj_data.site(site_id).xmat)
         while True:
+            step_start = time.time()
             # Set the target position of the end-effector site.
-            # self._mj_data.mocap_pos[mocap_id, 0:2] = circle(self._mj_data.time, 0.1, 0.5, 0.0, 0.5)
+            
+            p_t, q_t = self.minimal_jerk_pose(
+                p0=p0,
+                q0=q0,
+                p1=_goal_pose_T.translation,
+                q1=_goal_pose_T.quaternion,
+                t=self._mj_data.time,
+                T=start_time_mj+1.0
+            )
 
-            self._mj_data.mocap_pos[mocap_id, :] = _goal_pose_T.translation
-            self._mj_data.mocap_quat[mocap_id, :] = _goal_pose_T.quaternion
+            self._mj_data.mocap_pos[mocap_id, :] = p_t
+            self._mj_data.mocap_quat[mocap_id, :] = q_t
+
+            # self._mj_data.mocap_pos[mocap_id, :] = _goal_pose_T.translation
+            # self._mj_data.mocap_quat[mocap_id, :] = _goal_pose_T.quaternion
 
             # Position error.
             error_pos[:] = self._mj_data.mocap_pos[mocap_id] - self._mj_data.site(site_id).xpos
@@ -169,218 +235,518 @@ class PositionBasedInsertion(MujocoEnvBase):
 
             # Step the simulation.
             mujoco.mj_step(self._mj_model, self._mj_data)
+            self.data_recording.record(label=label)
 
             if viewer is not None:
                 viewer.sync()
             
             with np.printoptions(precision=4, floatmode="fixed", suppress=True):
-                print("[ROBOT] error position: {:.4f}, error orientation: {:.4f}".format(
-                    np.linalg.norm(error_pos), np.linalg.norm(error_ori)))
+                print("[ROBOT] error position: {:.4f}, error orientation: {:.4f}, joint velocities: {}".format(
+                    np.linalg.norm(error_pos), np.linalg.norm(error_ori), self._mj_data.qvel[0:6]))
 
-            if np.linalg.norm(error_pos) < 0.0003 and np.linalg.norm(error_ori) < 0.001:
+            if (np.linalg.norm(error_pos) < 0.0003 and np.linalg.norm(error_ori) < 0.001) or (all(np.abs(self._mj_data.qvel[0:6]) < 0.001)):
                 print("[ROBOT] reached goal pose")
                 break
+            
+            time_until_next_step = dt - (time.time() - step_start)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
 
-    def move_pose(self,
+
+    def move_pose_lin(self,
                   viewer,
                   _goal_pose_T: T = None,
-                  qgoal: np.ndarray = None
+                  pos_offset: np.array = np.array([0.0, 0.0, 0.0]),
+                  label: str = "moving"
                   ):
         
-        q_init = self.robot.get_current_joint_state()[0]
-        if qgoal is not None:
-            q_goal = qgoal
-        else:
-            q_goal = self.robot._eef_position_controller.ik.ik(_goal_pose_T.matrix, q_init) 
+        _goal_pose_T.translation += pos_offset
         
-        t_max = 5.0  # seconds
+        current_eef_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "tool0", ensure_negative_z_axis=False)
+
+        q_init = self.robot.get_current_joint_state()[0]
+        q_goal = self.robot._eef_position_controller.ik.ik(_goal_pose_T._matrix, q_init)
+
         i = 0
-        # self._mj_data.ctrl[0:6] = q_goal
-        while 1:
-            # get states
-            q_current, _ = self.robot.get_current_joint_state()
-            current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
-            # current_joint_state = self.robot.get_current_joint_state()
-            # measured_wrench = self.robot.get_fts_data(transform_to_base=True)
+        dt = self._sim_timestep
+        max_eef_vel = 1.0       # m/s
+        max_joint_vel = 3.33    # rad/s
+        traj_time = 1.0 #np.linalg.norm(_goal_pose_T.translation - current_eef_pose_T.translation) / max_eef_vel
+        nsteps_new_qtgoal = int((traj_time//dt)//10)
+
+        with np.printoptions(precision=4, floatmode="fixed", suppress=True):
+            print("[ROBOT] moving to target pose p: {}, q: {}".format(_goal_pose_T.translation, _goal_pose_T.quaternion))
             
-            # self._mj_data.ctrl[0:6] = q_goal
-            # self._mj_data.qpos[6] = self._gripper_qpos
-            # self._mj_data.qpos[10] = self._gripper_qpos
-
-            # t = i*self._sim_timestep/t_max
-            # t = np.minimum(t, 1.0)
-            # target = q_init * (1-t) + q_goal * t
-
-            # Check the termination condition
-            if self.termination(q_current, q_goal):
-                # self.data_eva.save()
-                print("reached goal pose {}".format(q_current))
-                break
+        while True:
+            step_start = time.time()
+            t = i*self._sim_timestep
             
-            # EEF Position control
-            next_eef_goal = self.robot._eef_position_controller.eef_position_control(
-                current_eef_pose = current_eef_pose_T,
-                target_eef_pose = _goal_pose_T,
-                q_init = self.robot.get_current_joint_state()[0],
-                return_q_cmd=False
-            )
+            if i % nsteps_new_qtgoal == 0:
+                print("[ROBOT] moving... t: {:.4f} / {:.4f}".format(t, traj_time))
+                q_current = self.robot.get_current_joint_state()[0]
+                pt, qt = self.minimal_jerk_pose(p0=current_eef_pose_T.translation,
+                                                q0=current_eef_pose_T.quaternion,
+                                                p1=_goal_pose_T.translation,
+                                                q1=_goal_pose_T.quaternion,
+                                                t=t,
+                                                T=traj_time)
+                qt_goal = self.robot._eef_position_controller.ik.ik(T(pt, qt)._matrix, q_current)
+                self._mj_data.ctrl[0:6] = qt_goal
 
-            # Joint position control
-            self.robot.move_to_eef_pose(
-                viewer=viewer,
-                eef_pose=next_eef_goal.get_pos_quat_list(quat_format='xyzw'),
-                # eef_pose=goal_pose_T.get_pos_quat_list(quat_format='xyzw'),
-                # qpos_thresh=1.0 * np.pi/180,
-                executing=False
-            )
-
-            
-            for _ in range(1):
-                self.robot.spin()
+            for _ in range(2):
                 self.step_mj_simulation()
+
+            self.data_recording.record(label=label)
+            self._mj_renderer.update_scene(self._mj_data, camera=self.cam)
+
+            if i % self.iterations_per_frame == 0.0:
+                frame = self._mj_renderer.render()
+                self.frames.append(frame)
 
             if viewer != None:    
                 viewer.sync()
+
+            _eef_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "tool0", ensure_negative_z_axis=False)
+            if self.termination(pose_goal=_goal_pose_T, pose_current=_eef_pose_T, threshold=0.002) or t >= 2.0:
+                break
+
             i += 1
 
-        # self._mj_data.ctrl[0:6] = q_goal
-        # self._mj_data.ctrl[0:6] = self.robot.get_current_joint_state()[0]
+            time_until_next_step = dt - (time.time() - step_start)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
+
+        self._mj_data.qvel[0:6] = 0.0
+        
+        with np.printoptions(precision=4, floatmode="fixed", suppress=True):
+            print("[ROBOT] reached target pose p: {}, q: {}".format(_eef_pose_T.translation, _eef_pose_T.quaternion))
+    
+
+    def move_pose_lin_new(self,
+                  viewer,
+                  _goal_pose_T: T = None,
+                  pos_offset: np.array = np.array([0.0, 0.0, 0.0]),
+                  label: str = "moving"
+                  ):
+        
+        _goal_pose_T.translation += pos_offset
+        
+        current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
+
+        q_init = self.robot.get_current_joint_state()[0]
+        q_goal = self.robot._eef_position_controller.ik.ik(_goal_pose_T._matrix, q_init)
+
+        i = 0
+        print("[ROBOT] move to orientation")
+        q_current = self.robot.get_current_joint_state()[0]
+        qt_goal = self.robot._eef_position_controller.ik.ik(T(current_eef_pose_T.translation, _goal_pose_T.quaternion)._matrix, q_current)
+        while True:
+            
+            self._mj_data.ctrl[0:6] = qt_goal
+
+            self.step_mj_simulation()
+            self.data_recording.record(label=label)
+
+            if viewer != None:    
+                viewer.sync()
+
+            pose_current = self.robot.get_eef_pose_in_base_frame()
+
+            # Orientation error.
+            site_quat_conj = np.zeros(4)
+            error_quat = np.zeros(4)
+            error_ori = np.zeros(3)
+            site_quat = pose_current.quaternion
+            mujoco.mju_negQuat(site_quat_conj, site_quat)
+            mujoco.mju_mulQuat(error_quat, _goal_pose_T.quaternion, site_quat_conj)
+            mujoco.mju_quat2Vel(error_ori, error_quat, 1.0)
+
+            if (np.linalg.norm(error_ori) < 0.005) or (all(np.abs(self._mj_data.qvel[0:6]) < 0.00001)):
+                print("[ROBOT] reached goal orientation")
+                break
+
+            i += 1
+
+        i = 0
+        current_eef_pose_T = self.robot.get_eef_pose_in_base_frame()
+        print("[ROBOT] move to position")
+        q_current = self.robot.get_current_joint_state()[0]
+        qt_goal = self.robot._eef_position_controller.ik.ik(T(_goal_pose_T.translation, current_eef_pose_T.quaternion)._matrix, q_current)
+        while True:
+            
+            self._mj_data.ctrl[0:6] = qt_goal
+
+            self.step_mj_simulation()
+            self.data_recording.record(label=label)
+
+            if viewer != None:    
+                viewer.sync()
+
+            pose_current = self.robot.get_eef_pose_in_base_frame()
+
+            # # Position error.
+            error_pos = _goal_pose_T.translation - pose_current.translation
+
+            if (np.linalg.norm(error_pos) < 0.001) or (all(np.abs(self._mj_data.qvel[0:6]) < 0.00001)):
+                print("[ROBOT] reached goal position")
+                break
+
+            i += 1
+
         pos_a, quat_a =  get_body_pose_in_world(self._mj_model, self._mj_data, "tool0")
-        print("tool0 in world frame: pos {}, quat {}".format(pos_a, quat_a))  
+        print("tool0 in world frame: pos {}, quat {}".format(pos_a, quat_a))
 
 
     def set_gripper_position(self, position: float, viewer):
         """
         Set the gripper position (width between fingers).
-        position: float, range from [0.0, 0.085] meter [fully closed, fully open]
+        position: float, range from [0.0, 0.05] meter [fully closed, fully open]
         """
-
+        position = np.clip(position, 0, 0.05)
+        i = 0
+        print("[GRIPPER] setting gripper opening to {:.4f}.".format(position))
         while True:
-            
-            self._mj_data.ctrl[6] = 255 - 255 * position / 0.085
-            mujoco.mj_step(self._mj_model, self._mj_data)
+            t = i*self._sim_timestep
+            # self._mj_data.ctrl[6] = 255 - 255 * position / 0.085
+            self._mj_data.ctrl[6] = 0.025 - position/2
 
-            with np.printoptions(precision=4, floatmode="fixed", suppress=True):
-                print("[GRIPPER] qvel: {}".format(self._mj_data.qvel[6:13]))
+            mujoco.mj_step(self._mj_model, self._mj_data)
+      
+            # position_error = np.abs(self._mj_data.qpos[6] - (0.8 - 0.8*position/0.085))
+            position_error = np.abs(self._mj_data.qpos[6] - (0.025 - position/2))
+
+            # print("[GRIPPER] position error: {:.4f}, velocity: {:.4f}".format(position_error, self._mj_data.qvel[6]))
+            
+            self.data_recording.record(label="grasping")
+            self._mj_renderer.update_scene(self._mj_data, camera=self.cam)
+
+            if i % self.iterations_per_frame == 0.0:
+                frame = self._mj_renderer.render()
+                self.frames.append(frame)
             
             if viewer is not None:
                 viewer.sync()
             
-            if any(abs(self._mj_data.qvel[6:13]) < 0.003):
+            if position_error <= 0.0005 or np.abs(self._mj_data.qvel[6]) <= 0.0001:
                 break
-        
-        print("[GRIPPER] gripper position set. Extra simulation steps for safety.")
-        for _ in range(int(.1//self._sim_timestep)):
-            mujoco.mj_step(self._mj_model, self._mj_data)
-    
+            
+            i += 1
+        print("[GRIPPER] done.")
 
-    def apply_gravity_compensation(self):
-        # Name of bodies we wish to apply gravity compensation to.
-        body_names = [
-            "base",
-            "shoulder_link",
-            "upper_arm_link",
-            "forearm_link",
-            "wrist_1_link",
-            "wrist_2_link",
-            "wrist_3_link",
-            "tool0"
-        ]
-        body_ids = [self._mj_model.body(name).id for name in body_names]
-        
-        self._mj_model.body_gravcomp[body_ids] = 1.0
-    
 
-    def get_body_grasp_pose(self, body_name: str, z_offset: float):
+    def get_offset_in_body_frame(self, body_name: str, pos_offset: np.array = np.array([0.0,0.0,0.0]), euler_offset: np.array = np.array([0.0,0.0,0.0]), ensure_negative_z_axis = True):
+        """
+        Compute a position and orientation offset expressed in the robot "base" body frame
+        given offsets specified in a named MuJoCo body frame.
+        This method:
+        - Looks up the MuJoCo body by name and reads the body's world pose (rotation matrix and position)
+            from self._mj_data.
+        - Applies an internal tool/end-effector offset (a fixed 0.228 m displacement along the base z-axis)
+            that is first expressed in the body frame and then added to the provided position offset.
+        - Transforms the combined position offset from the specified body frame into the base frame.
+        - Converts the provided Euler-angle offset (XYZ order, radians) into a rotation matrix,
+            applies the body->world and world->base transforms, and returns the result as a MuJoCo-style
+            quaternion (w, x, y, z).
+        Parameters
+        ----------
+        body_name : str
+                Name of the MuJoCo body whose local frame the input offsets are specified in.
+        pos_offset : numpy.ndarray, shape (3,), optional
+                Cartesian position offset expressed in the named body frame (in meters).
+                Default: np.array([0.0, 0.0, 0.0]).
+        euler_offset : numpy.ndarray, shape (3,), optional
+                Euler-angle orientation offset expressed in the named body frame (in radians).
+                Angles are applied in 'xyz' order (i.e., rotate about x, then y, then z).
+                Default: np.array([0.0, 0.0, 0.0]).
+        Returns
+        -------
+        tuple(numpy.ndarray, numpy.ndarray)
+                - pos_offset_base : numpy.ndarray, shape (3,)
+                        The position offset expressed in the "base" body frame (meters).
+                        This is computed by: base_R^T * ( body_R * (pos_offset + tool_offset_in_body) ),
+                        where body_R is the world-from-body rotation and base_R is the world-from-base rotation.
+                - quat_offset_base : numpy.ndarray, shape (4,)
+                        The orientation offset expressed in the "base" body frame as a MuJoCo quaternion
+                        in the order (w, x, y, z). The quaternion corresponds to the rotation that, when
+                        applied in the base frame, produces the same orientation offset as the input Euler
+                        angles expressed in the body frame.
+        Raises
+        ------
+        ValueError
+                If the named body (body_name) is not found in the MuJoCo model.
+        IndexError
+                If the "base" body is not present in the MuJoCo model or internal MuJoCo data arrays
+                cannot be indexed as expected (the code currently assumes a body named "base" exists).
+        TypeError
+                If pos_offset or euler_offset cannot be interpreted as 3-element numeric arrays.
+        """
         body_id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, body_name)
 
-        body_pos = self._mj_data.xpos[body_id]                  # world position of body
-        body_R   = self._mj_data.xmat[body_id].reshape(3,3)     # 3×3 world-from-body rotation
-        body_quat = self._mj_data.xquat[body_id, :] 
+        if body_id == -1:
+            raise ValueError(f"Body '{body_name}' not found in the MuJoCo model")
 
-        z_body_in_world = body_R[:, 2]              # local z-axis expressed in world frame
+        # Get body rotation matrix (world-from-body)
+        body_R = self._mj_data.xmat[body_id].reshape(3, 3)
 
-        # Ensure the returned orientation has the local z-axis pointing downwards
-        if z_body_in_world[2] > 0:
-            # Rotate 180° around the body x-axis (in body frame) to flip local z.
-            # This is achieved by post-multiplying the body rotation by diag([1, -1, -1]).
-            R_flip = np.diag([1.0, -1.0, -1.0])
-            R_new = body_R @ R_flip
-            # Convert the new rotation matrix to a quaternion using MuJoCo utility.
-            body_quat_new = np.zeros(4, dtype=float)
-            mujoco.mju_mat2Quat(body_quat_new, R_new.reshape(9))
-            body_quat = body_quat_new
-            z_body_used = R_new[:, 2]
-        else:
-            z_body_used = z_body_in_world
+        # Ensure the body-frame Z axis (third column of body_R) points downwards
+        # If the Z axis has a positive world-Z component, rotate 180deg about the
+        # body-local X axis (diag([1,-1,-1])) so Z becomes negative while keeping a proper rotation.
+        if body_R[2, 2] > 0 and ensure_negative_z_axis:
+            body_R = body_R @ np.diag([1.0, -1.0, -1.0])
 
-        p_shifted_world = body_pos + z_offset * z_body_used * np.sign(z_body_used[2])
+        body_pos = self._mj_data.xpos[body_id]
 
-        return p_shifted_world, body_quat
+        base_id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "base")
+        base_R = self._mj_data.xmat[base_id].reshape(3, 3)
+        base_pos = self._mj_data.xpos[base_id]
 
+        # Transform position offset from body frame to world frame:
+        # body_R is world-from-body rotation
+        if body_name == "base": eef_offset = np.array([0.0, 0.0, 0.21])#np.array([0.0, 0.0, 0.228])
+        else: eef_offset = np.array([0.0, 0.0, -0.21]) #np.array([0.0, 0.0, -0.228])
 
-    def labit_policy(self, viewer = None):
-        # TODO: translate object frame into volume center. Add this offset also to body attach pose when loading the object. 
+        pos_offset_world = body_R @ (pos_offset + eef_offset) # regard for offset from tool0 to grasping fingers
 
-        body_name = "plug_inside_loose_2_body" #"positioning_pin_d5_20_1_body"
-        # close gripper# close gripper
-        self.set_gripper_position(0.02, viewer)  
+        # Convert euler offset (assumed in radians, order XYZ) to rotation matrix in world frame
+        rot_offset_body = R.from_euler('xyz', euler_offset, degrees=False).as_matrix()
+        rot_offset_world = body_R @ rot_offset_body
+
+        # Convert rotation matrix to MuJoCo quaternion (w, x, y, z)
+        quat_offset_world = np.zeros(4, dtype=float)
+        mujoco.mju_mat2Quat(quat_offset_world, rot_offset_world.reshape(9))
+
+        # Transform from world frame to base frame using base transformation
+        base_R_inv = base_R.T  # Inverse of rotation matrix is its transpose
+        pos_offset_base = base_R_inv @ pos_offset_world
+        rot_offset_base = base_R_inv @ rot_offset_world
+
+        # Convert to quaternion in base frame
+        quat_offset_base = np.zeros(4, dtype=float)
+        mujoco.mju_mat2Quat(quat_offset_base, rot_offset_base.reshape(9))
         
-        # move to body
-        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.1)
-        goal_pose_T = T(translation=pos,
-                          quaternion=quat)
-        self.mocap_move_pose(viewer=viewer, _goal_pose_T=goal_pose_T)
+        return pos_offset_base, quat_offset_base
+    
+
+    def insert(self, viewer, body_name: str, target_name: str, poses_dict: dict, ensure_negative_z_axis: bool = True, gripper_opening: float = 0.017, gripper_closing: float = 0.0):
+        print("[INSERTING] {} into {}.".format(body_name, target_name))
+        # close gripper
+        # self.set_gripper_position(gripper_opening, viewer)
+        self._mj_data.ctrl[6] = 0.025 - gripper_opening/2
+        self._mj_data.qpos[6] = 0.025 - gripper_opening/2
+        self._mj_data.qpos[7] = 0.025 - gripper_opening/2
+        self.step_mj_simulation()
+        # move above body
+        # on real robot, object pose would be calibrated and saved in a yaml file.
+        # on real robot, we cant plan grasp pose relative to object pose, because we dont implement pose detection.
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis) 
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["pre_grasp"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
         # move to grasp pose (body coordinate frame in between fingertips)
-        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.0092)
-        goal_pose_T_2 = T(translation=pos,
-                          quaternion=quat)
-        self.mocap_move_pose(_goal_pose_T=goal_pose_T_2, viewer=viewer)
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis)
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["grasp"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
         # close the gripper to grasp
-        self.set_gripper_position(0.011, viewer)
+        self.set_gripper_position(gripper_closing, viewer)
 
-        # move away along object z axis
-        pos, quat = self.get_body_grasp_pose(body_name=body_name, z_offset=0.1)  
-        goal_pose_T_3 = T(translation=pos,
-                          quaternion=quat)
-        self.mocap_move_pose(_goal_pose_T=goal_pose_T_3, viewer=viewer)
+        # move away
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis)
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["after_grasp"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
-        while 1:
-            self.step_mj_simulation()
+        # move above assembly target
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["pre_asm"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
-            if viewer != None:
-                viewer.sync()
+        # assemble body and target
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["asm"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="inserting")
+
+        # release
+        self.set_gripper_position(0.017, viewer)
+
+        # move away
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["after_asm"], ensure_negative_z_axis=ensure_negative_z_axis)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+    
+
+    def labit_policy(self, viewer = None):
+        # # in real robot experiment, calibrate following poses:
+        # plate_benchmark: pose relative to robot base
+        # housing_middle: pose relative to plate_benchmark
+        # housing_bottom: pose relative to plate_benchmark
+        # housing_top: pose relative to plate_benchmark 
+        # for each object:
+        #   (relative to base): object pose
+        #   (object centric): pre_grasp, grasp, after_grasp, 
+        #   (target centric): pre_asm, asm, after_asm
+        # #
+
+        # # assembly of housing middle components
+        self.insert(viewer=viewer, body_name="pcb_body", target_name="housing_middle_pcb_target_body", gripper_closing=0.007,
+            poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.03]),
+                        "grasp": np.array([0.0, 0.0, -0.0058]),
+                        "after_grasp": np.array([0.0, 0.0, -0.25]),
+                        "pre_asm": np.array([0.0, 0.0, -0.1]),
+                        "asm": np.array([0.0, 0.0, -0.02]),
+                        "after_asm": np.array([0.0, 0.05, -0.11])})
+        self.insert(viewer=viewer, body_name="plug_inside_loose_1_body", target_name="plug_inside_fixed_1_body", gripper_closing=0.003,
+            poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.03]),
+                        "grasp": np.array([0.0, 0.0, -0.003]),
+                        "after_grasp": np.array([0.0, 0.0, -0.25]),
+                        "pre_asm": np.array([0.0, 0.0, -0.1]),
+                        "asm": np.array([0.0, 0.0, -0.003]),
+                        "after_asm": np.array([0.0, 0.0, -0.1])})
+        self.insert(viewer=viewer, body_name="plug_inside_loose_2_body", target_name="plug_inside_fixed_2_body", gripper_closing=0.003,
+            poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.03]),
+                        "grasp": np.array([0.0, 0.0, -0.003]),
+                        "after_grasp": np.array([0.0, 0.0, -0.25]),
+                        "pre_asm": np.array([0.0, 0.0, -0.1]),
+                        "asm": np.array([0.0, 0.0, -0.003]),
+                        "after_asm": np.array([0.0, 0.1, -0.1])})
+        self.insert(viewer=viewer, body_name="plug_outside_loose_body", target_name="plug_outside_fixed_body", gripper_closing=0.009,
+            poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.03]),
+                        "grasp": np.array([0.0, 0.0, -0.003]),
+                        "after_grasp": np.array([0.0, 0.0, -0.25]),
+                        "pre_asm": np.array([0.0, 0.0, -0.1]),
+                        "asm": np.array([0.0, 0.0, -0.003]),
+                        "after_asm": np.array([0.0, 0.0, -0.1])})
+
+        # # assembly for housing bottom components
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_2_body",target_name="housing_bottom_pin_hole_2_body", gripper_closing=0.004,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.02]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.05]),
+                                "asm": np.array([0.0, 0.0, -0.007]),
+                                "after_asm": np.array([0.0, 0.0, -0.1])})
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_1_body", target_name="housing_bottom_pin_hole_1_body", gripper_closing=0.004,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.02]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.05]),
+                                "asm": np.array([0.0, 0.0, -0.007]),
+                                "after_asm": np.array([0.0, 0.0, -0.1])})
+        self.insert(viewer=viewer, body_name="bolt_rotor_body", target_name="housing_bottom_body", gripper_closing=0.007,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.04]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.15]),
+                                "asm": np.array([0.0, 0.0, -0.06]),
+                                "after_asm": np.array([0.0, 0.0, -0.15])})
+
+        #TODO: assemble housing middle onto housing bottom
+        self.insert(viewer=viewer, body_name="housing_middle_grasp_target_body", target_name="housing_middle_release_target_body", ensure_negative_z_axis=False,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.003, -0.06]),
+                                "grasp": np.array([0.0, 0.003, 0.024]),
+                                "after_grasp": np.array([0.15, 0.003, 0.024]),
+                                "pre_asm": np.array([-0.15, 0.003, 0.024]),
+                                "asm": np.array([-0.001, 0.003, 0.024]),
+                                "after_asm": np.array([-0.001, 0.003, -0.03])})
+        
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "housing_middle_release_target_body", ensure_negative_z_axis=False) 
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name="housing_middle_release_target_body", pos_offset=np.array([-0.15, 0.003, -0.03]), ensure_negative_z_axis=False)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+
+
+        #TODO: place gearwheel 1
+        self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_1_body", target_name="bolt_rotor_body", gripper_closing=0.043, gripper_opening=0.05,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.06]),
+                                "grasp": np.array([0.0, 0.0, 0.015]),
+                                "after_grasp": np.array([0.0, 0.0, -0.06]),
+                                "pre_asm": np.array([0.0, 0.0, -0.15]),
+                                "asm": np.array([0.0, 0.0, -0.05]),
+                                "after_asm": np.array([0.0, 0.0, -0.15])})
+        #TODO: place gearwheel 2
+        self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_2_body", target_name="bolt_middle_housing_body", gripper_closing=0.043, gripper_opening=0.05,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.06]),
+                                "grasp": np.array([0.0, 0.0, 0.01]),
+                                "after_grasp": np.array([0.0, 0.0, -0.06]),
+                                "pre_asm": np.array([0.0, 0.0, -0.15]),
+                                "asm": np.array([0.0, 0.0, -0.05]),
+                                "after_asm": np.array([0.0, 0.0, -0.15])})
+        #TODO: insert pin into housing middle
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_3_body", target_name="housing_middle_pin_hole_3_body", gripper_closing=0.004,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.02]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.05]),
+                                "asm": np.array([0.0, 0.0, -0.0058]),
+                                "after_asm": np.array([0.0, 0.0, -0.1])})
+        #TODO: insert pin into housing middle
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_4_body", target_name="housing_middle_pin_hole_4_body", gripper_closing=0.004,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.02]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.05]),
+                                "asm": np.array([0.0, 0.0, -0.0058]),
+                                "after_asm": np.array([0.0, 0.0, -0.1])})
+        #TODO: put housing top onto housing middle
+        self.insert(viewer=viewer, body_name="tube_nozzle_body", target_name="housing_top_release_target_body", gripper_closing=0.01,
+                    poses_dict={"pre_grasp": np.array([0.0, 0.0, -0.02]),
+                                "grasp": np.array([0.0, 0.0, -0.0058]),
+                                "after_grasp": np.array([0.0, 0.0, -0.2]),
+                                "pre_asm": np.array([0.0, 0.0, -0.05]),
+                                "asm": np.array([0.0, 0.0, -0.0058]),
+                                "after_asm": np.array([0.0, 0.0, -0.1])})
+        #TODO: screw 1
+        #TODO: screw 2
+        #TODO: o-ring
+        #TODO: pin for coverplate 1
+        #TODO: pin for coverplate 2
+        #TODO: coverplate
+        #TODO: screw for coverplate
+        #TODO: tube
+        #TODO: tube clamp
+
+        #TODO: rotate assembly and put onto "housing middle" starting point
+        #TODO: screw 1
+        #TODO: screw 2
+
+        self.data_recording.save()
+        self.data_recording.plot_data()
+
         return
+
 
     def exec_labit(self):
         """
         Main function to execute the LABIT benchmark task.
         """
-
+        signal.signal(signal.SIGINT, self.signal_handler)
         # self.apply_gravity_compensation() # wont work; did it in xml
         with mujoco.viewer.launch_passive(self._mj_model, self._mj_data, show_left_ui=False, show_right_ui=False) as viewer:
-            
             self.update_view_scale()
             self.update_view_opt(viewer)
             update_view_camera_parameter(viewer, view_type="labit_benchmark")
-            viewer.sync()
             
-            time.sleep(60.0)
-            print_object_names(self._mj_model, mujoco.mjtObj.mjOBJ_JOINT, self._mj_model.nbody, "Bodies in the model")
+            for _ in range(10):
+                self.step_mj_simulation()
+            viewer.sync()
 
             self.labit_policy(viewer=viewer)
+            
+            return 
+
+
+    def signal_handler(self, sig, frame):
+        print("benchmark execution got interrupted. Saving video until current timestamp.")
+        imageio.mimsave("output.mp4", self.frames, fps=self.fps)
+        sys.exit(0) 
 
 
     def exec_labit_headless(self):
-        self.labit_policy()
+        signal.signal(signal.SIGINT, self.signal_handler)
 
+        self.labit_policy()
+                
         return
 
-
   
-
 if __name__ == "__main__":
     
     task_env_config_path = "/workspace/qbit/configs/envs/ur5e_labit_benchmark.yaml"

@@ -94,8 +94,8 @@ class UR5eMjArm(RobotBase):
         # forwards the joint command to the mujoco ctrl
         # print("Joint command: ", q_cmd)
         
-        # self._mj_data.ctrl[0:6] = q_cmd + q_pos_curr
-        self._mj_data.qpos[0:6] =  q_cmd + q_pos_curr
+        self._mj_data.ctrl[0:6] = q_cmd + q_pos_curr
+        # self._mj_data.qpos[0:6] =  q_cmd + q_pos_curr
 
         # print(q_cmd)
         return
@@ -105,7 +105,7 @@ class UR5eMjArm(RobotBase):
         self._ik = TracIKSolver(
             "/workspace/qbit/assets/robots/ur5e/ur5e_robot_calibrated.urdf",
             base_link="base_link",
-            tip_link="wrist_3_link", #"flange",
+            tip_link="tool0",
             timeout=0.5,
             epsilon=1e-6,
             solve_type='Distance'
@@ -166,7 +166,7 @@ class UR5eMjArm(RobotBase):
         
         # tcp_in_base_T = np.linalg.inv(self._base_T.matrix) @ self._tcp_T.matrix
 
-        return get_relative_pose(self._mj_model, self._mj_data, self.base_link_name, self.tcp_body_name)
+        return get_relative_pose(self._mj_model, self._mj_data, self.base_link_name, self.tcp_body_name, ensure_negative_z_axis=False)
     
 
     def get_peg_pos_quat(self):

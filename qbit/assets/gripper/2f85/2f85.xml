@@ -1,7 +1,7 @@
 <mujoco model="robotiq_2f85">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <!-- <option cone="elliptic" impratio="10"/> -->
+  <option cone="elliptic" impratio="10"/>
 
   <asset>
     <material name="metal" rgba="0.58 0.58 0.58 1"/>
@@ -99,7 +99,7 @@
                 diaginertia="4.73958e-07 3.64583e-07 1.23958e-07"/>
               <geom class="visual" mesh="2f85_pad"/>
               <body name="right_silicone_pad">
-                <geom class="visual" mesh="2f85_silicone_pad" material="black"/>
+                <geom class="visual" mesh="2f85_silicone_pad" material="black" friction="2 0.005 0.0001"/>
                 <site name="right_finger_site" pos="0 -0.006 0.033" quat="1 0 0 0" rgba="0 1 0 1" group="2"/>
               </body>
             </body>
@@ -139,7 +139,7 @@
                 diaginertia="4.73958e-07 3.64583e-07 1.23958e-07"/>
               <geom class="visual" mesh="2f85_pad"/>
               <body name="left_silicone_pad">
-                <geom class="visual" mesh="2f85_silicone_pad" material="black"/>
+                <geom class="visual" mesh="2f85_silicone_pad" material="black" />
                 <site name="left_finger_site" pos="0 -0.006 0.033" quat="1 0 0 0" rgba="0 1 0 1" group="2"/>
               </body>
             </body>

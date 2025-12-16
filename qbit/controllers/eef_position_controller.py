@@ -66,10 +66,10 @@ class EEFPositionController:
         tcp_position = tcp_in_base_T.translation
         tcp_pos_err = target_eef_pose.translation - tcp_position
         
-        allowed_step = self._eef_pos_vel_max * self._control_loop_dt
-        step = np.sign(tcp_pos_err) * np.minimum(np.abs(tcp_pos_err), allowed_step)
+        # allowed_step = self._eef_pos_vel_max * self._control_loop_dt
+        # step = np.sign(tcp_pos_err) * np.minimum(np.abs(tcp_pos_err), allowed_step)
                 
-        tcp_pos_cmd = tcp_position + step
+        tcp_pos_cmd = tcp_position + tcp_pos_err #step
         tcp_cmd_T = copy.deepcopy(target_eef_pose)
         tcp_cmd_T.translation = tcp_pos_cmd
         

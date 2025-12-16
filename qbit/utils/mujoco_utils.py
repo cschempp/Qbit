@@ -41,7 +41,7 @@ def get_body_pose_in_world(mj_model, mj_data, body_name):
 
     return pos, quat
 
-def get_relative_pose(mj_model, mj_data, body_name_a, body_name_b):
+def get_relative_pose(mj_model, mj_data, body_name_a, body_name_b, ensure_negative_z_axis = True):
     """
     Get the pose of object b in frame of object a.
     """
@@ -50,6 +50,10 @@ def get_relative_pose(mj_model, mj_data, body_name_a, body_name_b):
 
     pose_a_world = T(translation=pos_a, quaternion=convert_quat_to_xyzw(quat_a))._matrix
     pose_b_world = T(translation=pos_b, quaternion=convert_quat_to_xyzw(quat_b))._matrix
+
+    # make sure that z-axis of object is always showing downward.
+    if pose_b_world[2, 2] > 0 and ensure_negative_z_axis:
+        pose_b_world[:3,:3] = pose_b_world[:3,:3] @ np.diag([1.0, -1.0, -1.0])
 
     pose_b_a = np.linalg.inv(pose_a_world) @ pose_b_world
 
