@@ -584,92 +584,92 @@ class PositionBasedInsertion(MujocoEnvBase):
         # #
 
         # # assembly of housing middle components
-        # self.insert(viewer=viewer, body_name="pcb_body", target_name="housing_middle_pcb_target_body", gripper_closing=0.006,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.005])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.015])},
-        #                 "after_asm": {"position": np.array([0.0, 0.05, -0.11])})
-        # self.insert(viewer=viewer, body_name="plug_inside_loose_1_body", target_name="plug_inside_fixed_1_body", gripper_closing=0.005,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.005])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.009])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.1])})
-        # self.insert(viewer=viewer, body_name="plug_inside_loose_2_body", target_name="plug_inside_fixed_2_body", gripper_closing=0.005,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.005])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.009])},
-        #                 "after_asm": {"position": np.array([0.1, 0.0, -0.1])})
-        # self.insert(viewer=viewer, body_name="plug_outside_loose_body", target_name="plug_outside_fixed_body", gripper_closing=0.009,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.001])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.001])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.1])})
+        self.insert(viewer=viewer, body_name="pcb_body", target_name="housing_middle_pcb_target_body", gripper_closing=0.006,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.005])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.015])},
+                        "after_asm": {"position": np.array([0.0, 0.05, -0.11])}})
+        self.insert(viewer=viewer, body_name="plug_inside_loose_1_body", target_name="plug_inside_fixed_1_body", gripper_closing=0.005,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.005])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.009])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
+        self.insert(viewer=viewer, body_name="plug_inside_loose_2_body", target_name="plug_inside_fixed_2_body", gripper_closing=0.005,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.005])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.009])},
+                        "after_asm": {"position": np.array([0.1, 0.0, -0.1])}})
+        self.insert(viewer=viewer, body_name="plug_outside_loose_body", target_name="plug_outside_fixed_body", gripper_closing=0.009,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.001])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.1])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.001])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
 
-        # # # assembly for housing bottom components
-        # self.insert(viewer=viewer, body_name="positioning_pin_d5_20_2_body",target_name="housing_bottom_pin_hole_2_body", gripper_closing=0.0035,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.004])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.004])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.1])})
-        # self.insert(viewer=viewer, body_name="positioning_pin_d5_20_1_body", target_name="housing_bottom_pin_hole_1_body", gripper_closing=0.0035,
-        #     poses_dict={"pre_grasp": {np.array([0.0, 0.0, -0.02]),
-        #                 "grasp": np.array([0.0, 0.0, -0.004]),
-        #                 "after_grasp": np.array([0.0, 0.0, -0.2]),
-        #                 "pre_asm": np.array([0.0, 0.0, -0.05]),
-        #                 "asm": np.array([0.0, 0.0, -0.004]),
-        #                 "after_asm": np.array([0.0, 0.0, -0.1])})
-        # self.insert(viewer=viewer, body_name="bolt_rotor_body", target_name="housing_bottom_body", gripper_closing=0.005,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.04])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.0058])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.06])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.15])})
+        # # assembly for housing bottom components
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_2_body",target_name="housing_bottom_pin_hole_2_body", gripper_closing=0.0035,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
+        self.insert(viewer=viewer, body_name="positioning_pin_d5_20_1_body", target_name="housing_bottom_pin_hole_1_body", gripper_closing=0.0035,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
+                        "grasp":  {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
+        self.insert(viewer=viewer, body_name="bolt_rotor_body", target_name="housing_bottom_body", gripper_closing=0.005,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.04])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.0058])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.06])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
 
-        # #TODO: assemble housing middle onto housing bottom
-        # self.insert(viewer=viewer, body_name="housing_middle_grasp_target_body", target_name="housing_middle_release_target_body", ensure_negative_z_axis=False,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.003, -0.06])},
-        #                 "grasp": {"position": np.array([0.0, 0.003, 0.024])},
-        #                 "after_grasp": {"position": np.array([0.15, 0.003, 0.024])},
-        #                 "pre_asm": {"position": np.array([-0.15, 0.003, 0.024])},
-        #                 "asm": {"position": np.array([-0.001, 0.003, 0.024])},
-        #                 "after_asm": {"position": np.array([-0.001, 0.003, -0.03])})
-        # # move to side to avoid collision with housing bottom + middle
-        # goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "housing_middle_release_target_body", ensure_negative_z_axis=False) 
-        # pos_offset, quat_offset = self.get_offset_in_body_frame(body_name="housing_middle_release_target_body", pos_offset=np.array([-0.25, 0.003, -0.03]), ensure_negative_z_axis=False)
-        # self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        #TODO: assemble housing middle onto housing bottom
+        self.insert(viewer=viewer, body_name="housing_middle_grasp_target_body", target_name="housing_middle_release_target_body", ensure_negative_z_axis=False,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.003, -0.06])},
+                        "grasp": {"position": np.array([0.0, 0.003, 0.024])},
+                        "after_grasp": {"position": np.array([0.15, 0.003, 0.024])},
+                        "pre_asm": {"position": np.array([-0.15, 0.003, 0.024])},
+                        "asm": {"position": np.array([-0.001, 0.003, 0.024])},
+                        "after_asm": {"position": np.array([-0.001, 0.003, -0.03])}})
+        # move to side to avoid collision with housing bottom + middle
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "housing_middle_release_target_body", ensure_negative_z_axis=False) 
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name="housing_middle_release_target_body", pos_offset=np.array([-0.25, 0.003, -0.03]), ensure_negative_z_axis=False)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
-        # goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "housing_middle_release_target_body", ensure_negative_z_axis=False) 
-        # pos_offset, quat_offset = self.get_offset_in_body_frame(body_name="housing_middle_release_target_body", pos_offset=np.array([-0.25, -0.3, -0.03]), ensure_negative_z_axis=False)
-        # self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "housing_middle_release_target_body", ensure_negative_z_axis=False) 
+        pos_offset, quat_offset = self.get_offset_in_body_frame(body_name="housing_middle_release_target_body", pos_offset=np.array([-0.25, -0.3, -0.03]), ensure_negative_z_axis=False)
+        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
 
-        # #TODO: place gearwheel 1
-        # self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_1_body", target_name="bolt_rotor_body", gripper_closing=0.043, gripper_opening=0.05,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.015])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.05])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.15])})
-        # #TODO: place gearwheel 2
-        # self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_2_body", target_name="bolt_middle_housing_body", gripper_closing=0.043, gripper_opening=0.05,
-        #     poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
-        #                 "grasp": {"position": np.array([0.0, 0.0, -0.015])},
-        #                 "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
-        #                 "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
-        #                 "asm": {"position": np.array([0.0, 0.0, -0.05])},
-        #                 "after_asm": {"position": np.array([0.0, 0.0, -0.15])})
+        #TODO: place gearwheel 1
+        self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_1_body", target_name="bolt_rotor_body", gripper_closing=0.043, gripper_opening=0.05,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.015])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
+        #TODO: place gearwheel 2
+        self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_2_body", target_name="bolt_middle_housing_body", gripper_closing=0.043, gripper_opening=0.05,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.015])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
         #TODO: insert pin into housing middle
         self.insert(viewer=viewer, body_name="positioning_pin_d5_20_3_body", target_name="housing_middle_pin_hole_3_body", gripper_closing=0.0035,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
