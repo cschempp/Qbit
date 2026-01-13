@@ -257,11 +257,12 @@ class MujocoEnvBase:
             - show the site frame for debugging
             - https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjvoption
         """
-        viewer.opt.frame = mujoco.mjtFrame.mjFRAME_SITE
+        viewer.opt.frame = mujoco.mjtFrame.mjFRAME_BODY
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_SITE
-        # https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjtvisflag
-        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1
         # viewer.opt.label = mujoco.mjtLabel.mjLABEL_BODY
+        # https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjtvisflag
+        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 0
+        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = 0
 
 
     def update_view_scale(self):

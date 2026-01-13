@@ -10,14 +10,6 @@ def update_view_camera_parameter(viewer, view_type = "default"):
         view_type (str, optional): The type of view to set the camera parameters for. 
             Default is "default". Other options include "mesh_comparision" and "mesh_usb".
     """
-    # show the site frame for debugging
-    # https://mujoco.readthedocs.io/en/3.2.7/APIreference/APItypes.html#mjvoption
-    # viewer.opt.frame = mujoco.mjtFrame.mjFRAME_SITE
-    # viewer.opt.label = mujoco.mjtLabel.mjLABEL_SITE
-    # viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1  
-    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1  
-    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = 1  
-    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = 0
 
     # Default view
     viewer.cam.lookat[:] = np.array([-0.51057842, -0.39353146,  0.99606974])

@@ -37,7 +37,7 @@
       <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4"/>
     </default>
 
-    <!-- GRIPPER -->
+    <!-- GRIPPER kp 50000 0-->
     <default class="robotiq">
       <joint frictionloss="1" armature="0.1" />
       <position kp="500000" />
@@ -69,6 +69,7 @@
           <position kp="10" dampratio="0.1" ctrlrange="-3.1415 3.1415" />
       </default>
 
+      <!-- condim 4 friction 0.5 -->
       <default class="collision_gripper">
                 <geom type="mesh" group="3" />
                 <default class="soft">
@@ -79,7 +80,7 @@
                         condim="4"
                         contype="1"
                         conaffinity="1"
-                        friction="10 0.2 0.001" 
+                        friction="0.8 0.2 0.001" 
                         mass="0.3"
                     />
                 </default>
@@ -294,8 +295,8 @@
                             />
                             <joint name="hande_right_finger_joint" axis="-1 0 0" class="finger_slide" />
                             <geom mesh="right_finger" class="visual" material="gray" />
-                            <geom type="box" pos="0.028 0.000009 0.042" size="0.003 0.01 0.005" class="soft" />
-                            <geom type="box" pos="0.028 0.000009 0.032" size="0.003 0.01 0.005" class="soft" />
+                            <geom type="box" pos="0.028 0.000009 0.042" size="0.003 0.01 0.005" class="soft"  rgba="0 1 0 1" />
+                            <geom type="box" pos="0.028 0.000009 0.032" size="0.003 0.01 0.005" class="soft" rgba="1 0 0 1" />
                             <geom
                                 type="box"
                                 pos="0.0307 0.000009 0.0232"
@@ -363,8 +364,8 @@
 
   <tendon>
     <fixed name="split">
-      <joint joint="hande_left_finger_joint" coef="0.485" />
-      <joint joint="hande_right_finger_joint" coef="0.485" />
+      <joint joint="hande_left_finger_joint" coef="0.5" />
+      <joint joint="hande_right_finger_joint" coef="0.5" />
     </fixed>
   </tendon>
 

@@ -30,6 +30,16 @@ class BaseObject:
         
         self._mj_spec = mj_spec
         self._config = config_dict
+        self.objects_to_not_center_cs = ["plate_benchmark", 
+                                         "housing_bottom", 
+                                         "housing_top", 
+                                         "housing_middle", 
+                                         "rotor_printed_part", 
+                                         "pcb", 
+                                         "plug_inside_loose_1", 
+                                         "plug_inside_loose_2",
+                                         "plug_inside_fixed_1",
+                                         "plug_inside_fixed_2"]
 
         if self._config.get('mesh_path'):
             self.start_position_hole, self.insertion_depth = self.get_hole_pose_depth(self._config)
@@ -81,7 +91,7 @@ class BaseObject:
         R_parent_mesh = R.from_quat(quat).as_matrix()
         center_in_parent = R_parent_mesh @ self.mesh_center
 
-        if config.get('obj_name') in ["plate_benchmark", "housing_bottom", "housing_top", "housing_middle", "rotor_printed_part", "pcb"]: center_in_parent = np.array([0,0,0])
+        if config.get('obj_name') in self.objects_to_not_center_cs: center_in_parent = np.array([0,0,0])
         if self._config.get('attach_body') == 'world':
             self.obj_body = self._mj_spec.worldbody.add_body(
                 name = f"{config['obj_name']}_body",
@@ -368,7 +378,7 @@ class SpheredObject(BaseObject):
 
         if not os.path.exists(self._sphered_object_dir):
             self.sphere_packing_sdf(mesh=trimesh.load(self._config.get('mesh_path')),
-                                    radius=0.0002)
+                                    radius=0.0001)
 
         self.load_sphered_object(config=self._config)
 
@@ -442,7 +452,7 @@ class SpheredObject(BaseObject):
         file = self._sphered_object_dir
         scale = np.array(config.get('scale'))
 
-        if config.get('obj_name') in ["plate_benchmark", "housing_bottom", "housing_top", "housing_middle", "rotor_printed_part", "pcb"]: center_in_parent = np.array([0,0,0])
+        if config.get('obj_name') in self.objects_to_not_center_cs: center_in_parent = np.array([0,0,0])
         else: center_in_parent = self.mesh_center
 
         # add mesh for visual
@@ -504,5 +514,4 @@ class SpheredObject(BaseObject):
 if __name__ == "__main__":
     mesh_stl_path = "/workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl"
     mesh_gmsh_path = mesh_stl_path[:-3] + "msh"
-
 
