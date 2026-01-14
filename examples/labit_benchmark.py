@@ -582,7 +582,7 @@ class PositionBasedInsertion(MujocoEnvBase):
         #   (object centric): pre_grasp, grasp, after_grasp, 
         #   (target centric): pre_asm, asm, after_asm
         # #
-
+       
         # # assembly of housing middle components
         self.insert(viewer=viewer, body_name="pcb_body", target_name="housing_middle_pcb_target_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
@@ -779,8 +779,22 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "asm": {"position": np.array([0.0, 0.003, 0.024])},
                         "after_asm": {"position": np.array([0.0, 0.003, -0.1])}})
         #TODO: screw 4
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_4_body", target_name="housing_bottom_screw_hole_1_body", gripper_closing=0.01,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
         #TODO: screw 5
-
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_5_body", target_name="housing_bottom_screw_hole_2_body", gripper_closing=0.01,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
+        
         self.data_recording.save()
         self.data_recording.plot_data()
 
@@ -820,7 +834,9 @@ class PositionBasedInsertion(MujocoEnvBase):
         signal.signal(signal.SIGINT, self.signal_handler)
 
         self.labit_policy()
-                
+
+        imageio.mimsave("output.mp4", self.frames, fps=self.fps)
+          
         return
 
   
@@ -834,5 +850,5 @@ if __name__ == "__main__":
         server_modus=True,
         sim_timestep=SIM_TIMESTEP,
         )
-    mj.exec_labit()
-    # mj.exec_labit_headless()
+    # mj.exec_labit()
+    mj.exec_labit_headless()

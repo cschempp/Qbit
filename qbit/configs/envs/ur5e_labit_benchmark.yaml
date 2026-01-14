@@ -912,3 +912,19 @@ task_objects:
       quaternion: [0.5, -0.5, -0.5, 0.5] #[ 0.5 , 0.5, -0.5, 0.5] # wxyz
     scale: [0.001, 0.001, 0.001]
     mesh_color: [0.8, 0.8, 0.8, 1.0]
+    - obj_name: housing_bottom_screw_hole_1
+    mesh_type: none # mesh / sphere / coacd,vhacd / flexcomp / sdf / none (for only coordinate system)
+    attach_body: 'housing_bottom_body'
+    attach_pose:
+      position: [0.0, -0.07, 0.0045]
+      quaternion: [0.0, 1.0, 0.0, 0.0] #wxyz
+    scale: [0.001, 0.001, 0.001]
+    mesh_color: [0.8, 0.8, 0.8, 1.0]
+    - obj_name: housing_bottom_screw_hole_2
+    mesh_type: none # mesh / sphere / coacd,vhacd / flexcomp / sdf / none (for only coordinate system)
+    attach_body: 'housing_bottom_body'
+    attach_pose:
+      position: [0.07, 0.07, 0.0045]
+      quaternion: [0.0, 1.0, 0.0, 0.0] # wxyz
+    scale: [0.001, 0.001, 0.001]
+    mesh_color: [0.8, 0.8, 0.8, 1.0]
