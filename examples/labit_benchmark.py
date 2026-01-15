@@ -23,8 +23,9 @@ import imageio
 
 from qbit.controllers.eef_position_controller import EEFPositionController
 from qbit.utils.tf_utils import T
+from qbit.utils.tf_transformation import quaternion_multiply
 from qbit.utils.mj_viewer_utils import update_view_camera_parameter
-from qbit.utils.mujoco_utils import get_relative_pose, get_body_pose_in_world, print_object_names, convert_quat_to_xyzw
+from qbit.utils.mujoco_utils import get_relative_pose, get_body_pose_in_world, print_object_names, convert_quat_to_xyzw, convert_quat_to_xyzw, convert_quat_to_wxyz
 from qbit.utils.data_recording_utils import DataRecording
 from qbit.sim_envs.mujoco_env_insertion import MjEnvInsertion, MujocoEnvBase
 from scipy.spatial.transform import Rotation as R
@@ -114,6 +115,7 @@ class PositionBasedInsertion(MujocoEnvBase):
 
 
     def minimal_jerk_pose(self, p0, q0, p1, q1, t, T):
+        # scalar-last order – (x, y, z, w)
         s = self.minjerk_s(t, T)
         p_t = p0 + s * (p1 - p0)
         # q_t = geometric_slerp(q0, q1, s)
@@ -255,14 +257,21 @@ class PositionBasedInsertion(MujocoEnvBase):
 
     def move_pose_lin(self,
                   viewer,
+                  body_name: str,
                   _goal_pose_T: T = None,
                   pos_offset: np.array = np.array([0.0, 0.0, 0.0]),
-                  label: str = "moving"
+                  quat_offset: np.array = np.array([1.0, 0.0, 0.0, 0.0]),   # wxyz
+                  label: str = "moving",
+                  ensure_negative_z_axis=True
                   ):
         
-        _goal_pose_T.translation += pos_offset
-        
+        quaternion = quat_offset
+        translation = _goal_pose_T.translation + pos_offset
+        _goal_pose_T = T(translation=translation,
+                         quaternion=quaternion)
         current_eef_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", "tool0", ensure_negative_z_axis=False)
+
+        self.show_mj_target_frame(body_name, _goal_pose_T, ensure_negative_z_axis=ensure_negative_z_axis)
 
         q_init = self.robot.get_current_joint_state()[0]
         q_goal = self.robot._eef_position_controller.ik.ik(_goal_pose_T._matrix, q_init)
@@ -320,6 +329,31 @@ class PositionBasedInsertion(MujocoEnvBase):
         
         with np.printoptions(precision=4, floatmode="fixed", suppress=True):
             print("[ROBOT] reached target pose p: {}, q: {}".format(_eef_pose_T.translation, _eef_pose_T.quaternion))
+
+
+    def show_mj_target_frame(self, body_name, _goal_pose_T, ensure_negative_z_axis=True):
+        base_pose = get_relative_pose(self._mj_model, self._mj_data, "world", "base", ensure_negative_z_axis=False)
+        mocap_id = self._mj_model.body("target").mocapid[0]
+        eef_offset = np.array([0.0, 0.0, 0.21])
+
+        body_id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_BODY.value, body_name)
+        if body_id == -1:
+            raise ValueError(f"Body '{body_name}' not found in the MuJoCo model")
+        
+        # Get body rotation matrix (world-from-body)
+        body_R = self._mj_data.xmat[body_id].reshape(3, 3)
+        if body_R[2, 2] > 0 and ensure_negative_z_axis:
+            body_R = body_R @ np.diag([1.0, -1.0, -1.0])
+
+        # Transform to world frame
+        eef_offset = body_R @ eef_offset 
+        
+        translation = _goal_pose_T.translation
+        self._mj_data.mocap_pos[mocap_id, :] = base_pose.matrix[:3,:3] @ translation + base_pose.translation + eef_offset
+        R_ = base_pose.matrix[:3,:3] @ _goal_pose_T._matrix[:3,:3]
+        quat = R.from_matrix(R_).as_quat()  # xyzw
+
+        self._mj_data.mocap_quat[mocap_id, :] = convert_quat_to_wxyz(quat)  # wxyz
     
 
     def move_pose_lin_new(self,
@@ -407,15 +441,12 @@ class PositionBasedInsertion(MujocoEnvBase):
         print("[GRIPPER] setting gripper opening to {:.4f}.".format(position))
         while True:
             t = i*self._sim_timestep
-            # self._mj_data.ctrl[6] = 255 - 255 * position / 0.085
+
             self._mj_data.ctrl[6] = 0.025 - position/2
 
             mujoco.mj_step(self._mj_model, self._mj_data)
       
-            # position_error = np.abs(self._mj_data.qpos[6] - (0.8 - 0.8*position/0.085))
             position_error = np.abs(self._mj_data.qpos[6] - (0.025 - position/2))
-
-            # print("[GRIPPER] position error: {:.4f}, velocity: {:.4f}".format(position_error, self._mj_data.qvel[6]))
             
             self.data_recording.record(label="grasping")
             self._mj_renderer.update_scene(self._mj_data, camera=self.cam)
@@ -521,28 +552,27 @@ class PositionBasedInsertion(MujocoEnvBase):
         rot_offset_base = base_R_inv @ rot_offset_world
 
         # Convert to quaternion in base frame
-        quat_offset_base = np.zeros(4, dtype=float)
-        mujoco.mju_mat2Quat(quat_offset_base, rot_offset_base.reshape(9))
-        
+        quat_offset_base = R.from_matrix(rot_offset_base).as_quat()
+
         return pos_offset_base, quat_offset_base
     
 
     def insert(self, viewer, body_name: str, target_name: str, poses_dict: dict, ensure_negative_z_axis: bool = True, gripper_opening: float = 0.017, gripper_closing: float = 0.0):
         print("[INSERTING] {} into {}.".format(body_name, target_name))
         # set gripper opening
-        self.set_gripper_position(gripper_opening, viewer)
+        # self.set_gripper_position(gripper_opening, viewer)
 
         # move above body
         # on real robot, object pose would be calibrated and saved in a yaml file.
         # on real robot, we cant plan grasp pose relative to object pose, because we dont implement pose detection.
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis) 
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["pre_grasp"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["pre_grasp"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        self.move_pose_lin(viewer=viewer, body_name=body_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="moving", ensure_negative_z_axis=ensure_negative_z_axis)
 
         # move to grasp pose (body coordinate frame in between fingertips)
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis)
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["grasp"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["grasp"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        self.move_pose_lin(viewer=viewer, body_name=body_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="moving", ensure_negative_z_axis=ensure_negative_z_axis)
 
         # close the gripper to grasp
         self.set_gripper_position(gripper_closing, viewer)
@@ -550,17 +580,17 @@ class PositionBasedInsertion(MujocoEnvBase):
         # move away
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", body_name, ensure_negative_z_axis=ensure_negative_z_axis)
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=body_name, pos_offset=poses_dict["after_grasp"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["after_grasp"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        self.move_pose_lin(viewer=viewer, body_name=body_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="moving", ensure_negative_z_axis=ensure_negative_z_axis)
 
         # move above assembly target
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["pre_asm"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["pre_asm"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        self.move_pose_lin(viewer=viewer, body_name=target_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="moving", ensure_negative_z_axis=ensure_negative_z_axis)
 
         # assemble body and target
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["asm"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["asm"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="inserting")
+        self.move_pose_lin(viewer=viewer, body_name=target_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="inserting", ensure_negative_z_axis=ensure_negative_z_axis)
 
         # release
         self.set_gripper_position(gripper_opening, viewer)
@@ -568,7 +598,7 @@ class PositionBasedInsertion(MujocoEnvBase):
         # move away
         goal_pose_T = get_relative_pose(self._mj_model, self._mj_data, "base", target_name, ensure_negative_z_axis=ensure_negative_z_axis)
         pos_offset, quat_offset = self.get_offset_in_body_frame(body_name=target_name, pos_offset=poses_dict["after_asm"].get("position", np.array([0.0, 0.0, 0.0])), euler_offset=poses_dict["after_asm"].get("orientation", np.array([0.0, 0.0, 0.0])), ensure_negative_z_axis=ensure_negative_z_axis)
-        self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
+        self.move_pose_lin(viewer=viewer, body_name=target_name, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, quat_offset=quat_offset, label="moving", ensure_negative_z_axis=ensure_negative_z_axis)
     
 
     def labit_policy(self, viewer = None):
@@ -583,7 +613,7 @@ class PositionBasedInsertion(MujocoEnvBase):
         #   (target centric): pre_asm, asm, after_asm
         # #
        
-        # # assembly of housing middle components
+        # assembly of housing middle components
         self.insert(viewer=viewer, body_name="pcb_body", target_name="housing_middle_pcb_target_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.005])},
@@ -636,7 +666,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "asm": {"position": np.array([0.0, 0.0, -0.06])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
 
-        #TODO: assemble housing middle onto housing bottom
+        # assemble housing middle onto housing bottom
         self.insert(viewer=viewer, body_name="housing_middle_grasp_target_body", target_name="housing_middle_release_target_body", ensure_negative_z_axis=False,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.003, -0.06])},
                         "grasp": {"position": np.array([0.0, 0.003, 0.024])},
@@ -654,7 +684,7 @@ class PositionBasedInsertion(MujocoEnvBase):
         self.move_pose_lin(viewer=viewer, _goal_pose_T=goal_pose_T, pos_offset=pos_offset, label="moving")
 
 
-        #TODO: place gearwheel 1
+        # place gearwheel 1
         self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_1_body", target_name="bolt_rotor_body", gripper_closing=0.043, gripper_opening=0.05,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.015])},
@@ -662,7 +692,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
                         "asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
-        #TODO: place gearwheel 2
+        # place gearwheel 2
         self.insert(viewer=viewer, body_name="gearwheel_teeth_35_mod_2_2_body", target_name="bolt_middle_housing_body", gripper_closing=0.043, gripper_opening=0.05,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.06])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.015])},
@@ -670,7 +700,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
                         "asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.15])}})
-        #TODO: insert pin into housing middle
+        # insert pin into housing middle
         self.insert(viewer=viewer, body_name="positioning_pin_d5_20_3_body", target_name="housing_middle_pin_hole_3_body", gripper_closing=0.0035,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.0058])},
@@ -678,7 +708,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.0058])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: insert pin into housing middle
+        # insert pin into housing middle
         self.insert(viewer=viewer, body_name="positioning_pin_d5_20_4_body", target_name="housing_middle_pin_hole_4_body", gripper_closing=0.0035,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.0058])},
@@ -686,40 +716,40 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.0058])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: put housing top onto housing middle
+        # put housing top onto housing middle
         self.insert(viewer=viewer, body_name="tube_nozzle_body", target_name="housing_top_release_target_body", gripper_closing=0.005,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position":np.array([0.0, 0.0, -0.005])},
                         "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
-                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.15])},
                         "asm": {"position": np.array([0.0, 0.0, -0.0058])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: screw 1
-        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_1_body", target_name="housing_top_screw_hole_1_body", gripper_closing=0.01,
+        # screw 1
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_1_body", target_name="housing_top_screw_hole_1_body", gripper_closing=0.006,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
+                        "grasp": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25])},
+                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
+                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
+                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
+        # screw 2
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_2_body", target_name="housing_top_screw_hole_2_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: screw 2
-        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_2_body", target_name="housing_top_screw_hole_2_body", gripper_closing=0.01,
-            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
-                        "grasp": {"position": np.array([0.0, 0.0, -0.004])},
-                        "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
-                        "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
-                        "asm": {"position": np.array([0.0, 0.0, -0.004])},
-                        "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: o-ring
-        self.insert(viewer=viewer, body_name="o_ring_body", target_name="housing_top_body", gripper_closing=0.01,
-            poses_dict={"pre_grasp": {"position": np.array([0.03, 0.0, -0.0286]), "orientation": np.array([0.0, -90.0, 0.0])},
-                        "grasp": {"position": np.array([0.0, 0.0, -0.0286]), "orientation": np.array([0.0, -90.0, 0.0])},
-                        "after_grasp": {"position": np.array([0.25, 0.0, -0.0286]), "orientation": np.array([0.0, -90.0, 0.0])},
-                        "pre_asm": {"position": np.array([-0.0286, 0.0, 0.03])},
-                        "asm": {"position": np.array([-0.0286, 0.0, 0.003])},
-                        "after_asm": {"position": np.array([-0.0286, 0.0, 0.1])}})
+        # o-ring
+        self.insert(viewer=viewer, body_name="o_ring_grasp_target_body", target_name="housing_top_body", gripper_closing=0.001,
+            poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03]), "orientation": np.array([0.0, 0.0, 0.0])},
+                        "grasp": {"position": np.array([0.0, 0.0, 0.003]), "orientation": np.array([0.0, 0.0, 0.0])},
+                        "after_grasp": {"position": np.array([0.0, 0.0, -0.25]), "orientation": np.array([0.0, 0.0, 0.0])},
+                        "pre_asm": {"position": np.array([-0.0286, 0.0, -0.03])},
+                        "asm": {"position": np.array([-0.0286, 0.0, -0.015])},
+                        "after_asm": {"position": np.array([-0.0286, 0.0, -0.1])}})
 
-        #TODO: pin for coverplate 1
+        # pin for coverplate 1
         self.insert(viewer=viewer, body_name="positioning_pin_d5_20_5_body", target_name="housing_top_pin_hole_coverplate_1_body", gripper_closing=0.01,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
@@ -727,7 +757,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: pin for coverplate 2
+        # pin for coverplate 2
         self.insert(viewer=viewer, body_name="positioning_pin_d5_20_6_body", target_name="housing_top_pin_hole_coverplate_2_body", gripper_closing=0.01,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
@@ -735,7 +765,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: coverplate
+        # coverplate
         self.insert(viewer=viewer, body_name="cover_plate_body", target_name="housing_top_body", gripper_closing=0.01,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.04, -0.03])},
                         "grasp": {"position": np.array([0.0, 0.04, -0.01])},
@@ -744,15 +774,15 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "asm": {"position": np.array([0.0, 0.04, -0.01])},
                         "after_asm": {"position": np.array([0.0, 0.04, -0.1])}})
 
-        #TODO: screw 3 for coverplate
-        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_3_body", target_name="housing_top_screw_hole_coverplate_body", gripper_closing=0.01,
+        # screw 3 for coverplate
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_3_body", target_name="housing_top_screw_hole_coverplate_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: tube
+        # tube
         self.insert(viewer=viewer, body_name="tube_body", target_name="tube_nozzle_body", gripper_closing=0.01,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.03])},
                         "grasp": {"position": np.array([0.0, 0.0, 0.0])},
@@ -761,7 +791,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "asm": {"position": np.array([0.0, 0.0, -0.03])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
 
-        #TODO: tube clamp
+        # tube clamp
         self.insert(viewer=viewer, body_name="tube_clamp_body", target_name="tube_nozzle_body", gripper_closing=0.01, gripper_opening=0.02, ensure_negative_z_axis=True,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, 0.0])},
@@ -770,7 +800,7 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "asm": {"position": np.array([0.0, 0.0, -0.01])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
         
-        #TODO: rotate assembly and put onto "housing middle" starting point
+        # rotate assembly and put onto "housing middle" starting point
         self.insert(viewer=viewer, body_name="housing_assembly_grasp_target_body", target_name="housing_assembly_release_target_body", gripper_closing=0.01, gripper_opening=0.03, ensure_negative_z_axis=False,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.003, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.003, 0.024])},
@@ -778,16 +808,16 @@ class PositionBasedInsertion(MujocoEnvBase):
                         "pre_asm": {"position": np.array([0.05, 0.003, 0.024])},
                         "asm": {"position": np.array([0.0, 0.003, 0.024])},
                         "after_asm": {"position": np.array([0.0, 0.003, -0.1])}})
-        #TODO: screw 4
-        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_4_body", target_name="housing_bottom_screw_hole_1_body", gripper_closing=0.01,
+        # screw 4
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_4_body", target_name="housing_bottom_screw_hole_1_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
                         "pre_asm": {"position": np.array([0.0, 0.0, -0.05])},
                         "asm": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_asm": {"position": np.array([0.0, 0.0, -0.1])}})
-        #TODO: screw 5
-        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_5_body", target_name="housing_bottom_screw_hole_2_body", gripper_closing=0.01,
+        # screw 5
+        self.insert(viewer=viewer, body_name="screw_m5_16_hexagon_head_5_body", target_name="housing_bottom_screw_hole_2_body", gripper_closing=0.006,
             poses_dict={"pre_grasp": {"position": np.array([0.0, 0.0, -0.02])},
                         "grasp": {"position": np.array([0.0, 0.0, -0.004])},
                         "after_grasp": {"position": np.array([0.0, 0.0, -0.2])},
@@ -840,7 +870,6 @@ class PositionBasedInsertion(MujocoEnvBase):
         return
 
   
-  
 if __name__ == "__main__":
     
     task_env_config_path = "/workspace/qbit/configs/envs/ur5e_labit_benchmark.yaml"
@@ -850,5 +879,5 @@ if __name__ == "__main__":
         server_modus=True,
         sim_timestep=SIM_TIMESTEP,
         )
-    # mj.exec_labit()
-    mj.exec_labit_headless()
+    mj.exec_labit()
+    # mj.exec_labit_headless()
