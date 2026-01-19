@@ -26,7 +26,7 @@ MATERIALS = {
         density=7850,
         solref=[0.001, 1.0],
         solimp=[0.9, 0.95, 0.001, 0.5, 2],
-        friction=[0.8, 0.005, 0.0001], # 0.8
+        friction=[1.5, 0.005, 0.0001], # 0.8
         young=2e11,
         poisson=0.28,
     ),

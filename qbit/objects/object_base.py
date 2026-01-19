@@ -378,7 +378,7 @@ class SpheredObject(BaseObject):
 
         if not os.path.exists(self._sphered_object_dir):
             self.sphere_packing_sdf(mesh=trimesh.load(self._config.get('mesh_path')),
-                                    radius=0.0001)
+                                    radius=self._config.get('radius_spheres', 0.001), bboxes=self._config.get('bboxes_fine', []))
 
         self.load_sphered_object(config=self._config)
 
@@ -416,17 +416,19 @@ class SpheredObject(BaseObject):
 
         print("[sphere_packing_sdf] Removing coarse points inside bboxes")
         # remove points in coarse voxelization that are inside the hole boxes
-        for bbox in bboxes:
-            bbox_min = bbox[0]
-            bbox_max = bbox[1]
-            mask = ~np.all((inside_points_coarse >= bbox_min) & (inside_points_coarse <= bbox_max), axis=1)
-            inside_points_coarse = inside_points_coarse[mask]
+        # for bbox in bboxes:
+        #     bbox_min = bbox[0]
+        #     bbox_max = bbox[1]
+        #     mask = ~np.all((inside_points_coarse >= bbox_min) & (inside_points_coarse <= bbox_max), axis=1)
+        #     inside_points_coarse = inside_points_coarse[mask]
 
         N = len(inside_points_coarse)
         radii_coarse = np.ones((N))*radius
 
         print("[sphere_packing_sdf] Generating fine sample points in bboxes...")
         for i,bbox in enumerate(bboxes):
+            bbox_min = bbox[0]
+            bbox_max = bbox[1]
             # fine sampling
             x = np.arange(bbox_min[0], bbox_max[0], radius_fine*2)
             y = np.arange(bbox_min[1], bbox_max[1], radius_fine*2)
@@ -512,6 +514,35 @@ class SpheredObject(BaseObject):
 
 
 if __name__ == "__main__":
-    mesh_stl_path = "/workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl"
-    mesh_gmsh_path = mesh_stl_path[:-3] + "msh"
+    # mesh_stl_path = "/workspace/qbit/assets/task_env/primitives/box_5.013x20.853x5.204/box_5.013x20.853x5.204_male.stl"
+    # mesh_gmsh_path = mesh_stl_path[:-3] + "msh"
 
+    # Load the sphered object file
+    sphered_file = "qbit/assets/task_env/labit_benchmark/housing_bottom_sphered.npy"
+    decomposed_mesh = np.load(sphered_file, allow_pickle=True)
+    positions = decomposed_mesh.item()["positions"]
+    radii = decomposed_mesh.item()["radii"]
+
+    # Create a simple visualization using trimesh
+    spheres = []
+    for pos, rad in zip(positions, radii):
+        sphere = trimesh.creation.icosphere(subdivisions=3, radius=rad)
+        sphere.apply_translation(pos)
+        spheres.append(sphere)
+
+    bboxes = [[[-0.075, -0.005, -0.009],[-0.065, 0.005, 0.001]],
+                  [[0.135, -0.005, -0.009],[0.145, 0.005, 0.001]],
+                  [[-0.005, -0.075, -0.009],[0.005, -0.065, 0.001]],
+                  [[0.065, 0.065, -0.009],[0.075, 0.075, 0.001]],
+                  ]
+    
+    for bbox in bboxes:
+        bbox_min = bbox[0]
+        bbox_max = bbox[1]
+        box = trimesh.creation.box(extents=np.array(bbox_max)-np.array(bbox_min))
+        box.apply_translation((np.array(bbox_min)+np.array(bbox_max))/2)
+        box.visual.face_colors = [255, 0, 0, 100]  # Red color with some transparency
+        spheres.append(box)
+    # Combine all spheres into one mesh
+    combined = trimesh.util.concatenate(spheres)
+    combined.show()

@@ -221,6 +221,12 @@ task_objects:
       friction: 0.3
   - obj_name: housing_bottom
     mesh_type: sphere # mesh / sphere / coacd
+    show_spheres: True
+    bboxes_fine: [[[-0.075, -0.005, -0.009],[-0.065, 0.005, 0.001]],
+                  [[0.135, -0.005, -0.009],[0.145, 0.005, 0.001]],
+                  [[-0.005, -0.075, -0.009],[0.005, -0.065, 0.001]],
+                  [[0.065, 0.065, -0.009],[0.075, 0.075, 0.001]],
+                  ]
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/housing_bottom.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
@@ -596,6 +602,8 @@ task_objects:
       friction: 0.3
   - obj_name: positioning_pin_d5_20_1
     mesh_type: sphere # mesh / sphere / coacd
+    show_spheres: True
+    radius_spheres: 0.00025
     mesh_path: /workspace/qbit/assets/task_env/labit_benchmark/positioning_pin_d5_20.stl
     attach_body: 'plate_benchmark_body'
     attach_pose:
