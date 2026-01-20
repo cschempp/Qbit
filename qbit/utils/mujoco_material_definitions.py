@@ -34,7 +34,7 @@ MATERIALS = {
         density=1190,
         solref=[0.001, 1.0],
         solimp=[0.9, 0.95, 0.001, 0.5, 2],
-        friction=[0.8, 0.005, 0.0001],
+        friction=[1.5, 0.005, 0.0001],
         young=2.5e9,
         poisson=0.4,
     ),

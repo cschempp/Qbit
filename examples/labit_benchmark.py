@@ -36,7 +36,7 @@ NUM_RUNS = 300
 
 RESULT_DIR = "/workspace/examples/experiment_results/position_based/exp_labit_benchmark"
 
-SIM_TIMESTEP = 0.0005 #0.0005
+SIM_TIMESTEP = 0.002 #0.0005, 0.001, 0.002
 
 NN_CONTROL_DT = 0.01
 ADMITTANCE_CONTROL_T = 0.01
